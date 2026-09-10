@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Shift Roster</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F172A'/%3E%3Ctext x='32' y='44' font-family='monospace' font-size='34' font-weight='700' fill='%2322D3EE' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shift Roster">
+<meta name="theme-color" content="#0F172A">
+<link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+<style>
+  :root{
+    --ink:#0F172A; --ink-soft:#475569; --paper:#F1F5F9; --card:#FFFFFF;
+    --line:#E2E8F0; --accent:#0E7490; --accent-ink:#FFFFFF;
+    --A:#16A34A; --B:#2563EB; --C:#EA580C; --D:#CA8A04; --OFF:#64748B;
+    --A-bg:#DCFCE7; --B-bg:#DBEAFE; --C-bg:#FFEDD5; --D-bg:#FEF3C7; --OFF-bg:#E2E8F0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .shell{max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);
+    display:flex;flex-direction:column;}
+  header{background:var(--ink);color:#fff;padding:18px 18px 14px;}
+  header .brand{display:flex;align-items:baseline;justify-content:space-between;}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px;}
+  header .sub{font-size:12px;color:#94A3B8;margin-top:2px;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 10px;background:var(--ink);
+    scrollbar-width:none;}
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{flex:0 0 auto;background:#1E293B;color:#CBD5E1;border:none;
+    padding:8px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+    white-space:nowrap;transition:background .15s,color .15s;}
+  nav.tabs button.active{background:var(--accent);color:#fff;}
+  main{flex:1;padding:16px 14px 40px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin-bottom:14px;}
+  .card h2{font-size:15px;margin:0 0 12px;font-weight:700;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .field{flex:1;min-width:90px;display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:none;}
+  select,input[type=date],input[type=text]{
+    font-size:15px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);width:100%;font-family:inherit;}
+  button.primary{background:var(--accent);color:#fff;border:none;border-radius:9px;
+    padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+  button.primary:active{opacity:.85;}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+    border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:600;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:11px;color:var(--ink-soft);padding:6px 6px;border-bottom:1px solid var(--line);}
+  td{padding:7px 6px;border-bottom:1px solid #F1F5F9;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  td.desc{font-family:inherit;}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;
+    height:22px;padding:0 6px;border-radius:6px;font-weight:700;font-size:12px;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .A{background:var(--A-bg);color:var(--A);} .B{background:var(--B-bg);color:var(--B);}
+  .C{background:var(--C-bg);color:var(--C);} .D{background:var(--D-bg);color:var(--D);}
+  .OFF{background:var(--OFF-bg);color:var(--OFF);}
+  .today-hero{background:var(--ink);color:#fff;border-radius:14px;padding:20px 18px;margin-bottom:14px;}
+  .today-hero .date{font-size:22px;font-weight:700;}
+  .today-hero .wk{font-size:13px;color:#94A3B8;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .grp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .grp-card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;text-align:center;}
+  .grp-card .glabel{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;}
+  .grp-card .gshift{font-size:26px;font-weight:800;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .grp-card .gtext{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .cal-month{margin-bottom:18px;}
+  .cal-month h3{font-size:13px;font-weight:700;margin:0;}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cal-nav button{font-size:11px;padding:6px 10px;}
+  .cal-nav button:disabled{opacity:.35;cursor:default;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-head{font-size:9px;color:var(--ink-soft);text-align:center;font-weight:700;padding:2px 0;}
+  .cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border-radius:6px;font-size:10px;font-family:ui-monospace,"SF Mono",Consolas,monospace;position:relative;
+    cursor:pointer;box-sizing:border-box;border:2px solid transparent;}
+  .cal-cell .d{font-weight:700;font-size:11px;}
+  .cal-empty{background:transparent;cursor:default;}
+  .cal-cell.cal-today{border-color:var(--ink);}
+  .cal-cell.cal-selected{box-shadow:0 0 0 2px var(--accent) inset;}
+  .cal-cell.cal-lost{border-color:#DC2626;}
+  .cal-marks{position:absolute;top:2px;right:2px;display:flex;gap:2px;}
+  .cal-mark{width:6px;height:6px;border-radius:50%;display:inline-block;}
+  .cal-mark.holiday{background:#DC2626;}
+  .cal-mark.secondsat{background:#F59E0B;}
+  .cal-mark.leave{background:#2563EB;}
+  .cal-mark.lost{background:transparent;border:2px solid #DC2626;width:8px;height:8px;}
+  .cal-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:11px;color:var(--ink-soft);}
+  .cal-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .cal-legend .cal-mark{position:static;}
+  .undo-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;
+    margin-bottom:12px;font-size:12.5px;color:#92400E;}
+  .undo-banner button{background:none;border:none;color:#0E7490;font-weight:700;font-size:12.5px;cursor:pointer;}
+  .exchange-line{padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;display:flex;
+    justify-content:space-between;align-items:center;}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+  .pill.yes{background:#DCFCE7;color:#166534;} .pill.no{background:#FEE2E2;color:#991B1B;}
+  .empty-note{font-size:12px;color:var(--ink-soft);text-align:center;padding:14px 0;}
+  .data-item{display:flex;justify-content:space-between;align-items:center;
+    padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;gap:8px;}
+  .data-item .meta{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;color:var(--ink-soft);}
+  .data-item .del{background:none;border:none;color:#DC2626;font-size:16px;cursor:pointer;padding:2px 6px;}
+  .hint{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
+  .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:13px;
+    padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);}
+  tr.today-row td{background:#CFFAFE;font-weight:700;}
+  .motivate-card{background:linear-gradient(135deg,#0E7490,#0F172A);color:#fff;border:none;}
+  .motivate-card h2{color:#fff;}
+  .motivate-sub{font-size:11px;color:#BAE6FD;margin:-6px 0 14px;}
+  .stat-block{margin-bottom:16px;}
+  .stat-block:last-child{margin-bottom:0;}
+  .stat-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .stat-head .label{font-weight:700;font-size:13px;}
+  .stat-head .val{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:#A7F3D0;font-weight:700;font-size:12px;}
+  .pbar-track{background:rgba(255,255,255,.18);border-radius:20px;height:10px;overflow:hidden;}
+  .pbar-fill{height:100%;border-radius:20px;transition:width .3s;}
+  .pbar-fill.coff{background:#22D3EE;}
+  .pbar-fill.night{background:#FBBF24;}
+  .stat-foot{font-size:11px;color:#CBD5E1;margin-top:4px;}
+  .loss-box{background:rgba(248,113,113,.16);border:1px solid rgba(248,113,113,.4);
+    border-radius:10px;padding:10px 12px;margin-top:14px;font-size:12px;line-height:1.5;color:#FEE2E2;}
+  .loss-box b{color:#FCA5A5;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand"><h1>Shift Roster</h1></div>
+    <div class="sub" id="headerDate"></div>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="content"></main>
+</div>
+
+<script>
+/* ============================= CORE SHIFT LOGIC ============================= */
+const groupOffset = { 1: 9, 2: 16, 3: 23, 4: 2 };
+const cycle = ["A","A","A","*","A","A","A","B","B","B","B","*","B","B",
+               "*","C","C","C","C","C","C","C","D","*","A","B","D","D"];
+const REF_DATE = Date.UTC(2026, 7, 11); // 11 Aug 2026
+
+function getShift(group, dateUTC) {
+  const dt = Math.round((dateUTC - REF_DATE) / 86400000);
+  const shift = groupOffset[group] + dt;
+  const ds = (((shift - 1) % 28) + 28) % 28;
+  return cycle[ds];
+}
+function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+function isoKey(y, m, d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function isoKeyFromUTC(u) { const dt = new Date(u); return isoKey(dt.getUTCFullYear(), dt.getUTCMonth()+1, dt.getUTCDate()); }
+const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function weekdayName(utc){ return WEEKDAYS[new Date(utc).getUTCDay()]; }
+function fmtDMY(utc){ const dt=new Date(utc); return `${String(dt.getUTCDate()).padStart(2,'0')}/${String(dt.getUTCMonth()+1).padStart(2,'0')}/${dt.getUTCFullYear()}`; }
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function monthWeeks(year, month) { // Monday-first weeks, like python calendar.monthcalendar
+  const first = new Date(Date.UTC(year, month-1, 1));
+  const startIdx = (first.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  const total = daysInMonth(year, month);
+  const weeks = []; let week = new Array(startIdx).fill(0);
+  for (let d=1; d<=total; d++){ week.push(d); if(week.length===7){weeks.push(week); week=[];} }
+  if (week.length){ while(week.length<7) week.push(0); weeks.push(week); }
+  return weeks;
+}
+
+/* ============================= DATA (holidays/leaves/extra) ============================= */
+let holidays = [{"date": "2026-01-26", "desc": "Republic Day"}, {"date": "2026-02-01", "desc": "Sant Ravidas Jayanti"}, {"date": "2026-02-15", "desc": "Mahashivratri"}, {"date": "2026-03-03", "desc": "Holi"}, {"date": "2026-03-04", "desc": "Holi 2nd day"}, {"date": "2026-03-19", "desc": "Gudi Padwa"}, {"date": "2026-03-20", "desc": "Cheti Chand"}, {"date": "2026-03-21", "desc": "Eid-ul-Fitr"}, {"date": "2026-03-27", "desc": "Ram Navami"}, {"date": "2026-03-31", "desc": "Mahavir Jayanti"}, {"date": "2026-04-03", "desc": "Good Friday"}, {"date": "2026-04-14", "desc": "Dr. Ambedkar Jayanti"}, {"date": "2026-04-20", "desc": "Parshuram Jayanti"}, {"date": "2026-05-01", "desc": "Buddha Purnima"}, {"date": "2026-05-27", "desc": "Eid-ul-Adha (Bakrid)"}, {"date": "2026-06-17", "desc": "Maharana Pratap Jayanti / Chhatrasal Jayanti"}, {"date": "2026-06-26", "desc": "Muharram"}, {"date": "2026-07-29", "desc": "Gurupurnima (LH)"}, {"date": "2026-08-15", "desc": "Independence Day"}, {"date": "2026-08-26", "desc": "Milad-un-Nabi"}, {"date": "2026-08-28", "desc": "Raksha Bandhan"}, {"date": "2026-09-04", "desc": "Janmashtami"}, {"date": "2026-09-14", "desc": "Ganesh Chaturthi"}, {"date": "2026-09-25", "desc": "Anant Chaturdashi (LH)"}, {"date": "2026-10-02", "desc": "Gandhi Jayanti"}, {"date": "2026-10-19", "desc": "Mahanavmi (LH)"}, {"date": "2026-10-20", "desc": "Dussehra"}, {"date": "2026-10-26", "desc": "Maharishi Valmiki Jayanti"}, {"date": "2026-11-08", "desc": "Diwali"}, {"date": "2026-11-09", "desc": "Govardhan Puja"}, {"date": "2026-11-15", "desc": "Bhagwan Birsa Munda Jayanti"}, {"date": "2026-11-24", "desc": "Guru Nanak Jayanti"}, {"date": "2026-12-25", "desc": "Christmas"}];
+let leaves   = [{"date": "2026-01-27", "desc": "CL"}, {"date": "2026-01-31", "desc": "CL"}, {"date": "2026-02-01", "desc": "CL"}, {"date": "2026-02-20", "desc": "CL"}, {"date": "2026-04-06", "desc": "CL"}, {"date": "2026-04-07", "desc": "CL"}, {"date": "2026-04-25", "desc": "EL"}, {"date": "2027-04-26", "desc": "EL"}, {"date": "2026-04-27", "desc": "EL"}, {"date": "2026-04-28", "desc": "EL"}, {"date": "2026-04-29", "desc": "EL"}, {"date": "2026-04-30", "desc": "EL"}, {"date": "2026-05-18", "desc": "CL"}, {"date": "2026-05-19", "desc": "CL"}, {"date": "2026-05-26", "desc": "CL"}, {"date": "2026-06-20", "desc": "CL"}, {"date": "2026-06-21", "desc": "CL"}, {"date": "2026-06-23", "desc": "EL"}, {"date": "2026-06-24", "desc": "EL"}, {"date": "2026-06-25", "desc": "EL"}, {"date": "2026-06-26", "desc": "EL"}, {"date": "2026-06-27", "desc": "EL"}, {"date": "2026-06-28", "desc": "EL"}, {"date": "2026-06-29", "desc": "EL"}, {"date": "2026-07-12", "desc": "CL"}, {"date": "2026-07-24", "desc": "CL"}, {"date": "2026-07-27", "desc": "EL"}, {"date": "2026-07-28", "desc": "EL"}, {"date": "2026-07-29", "desc": "EL"}, {"date": "2026-08-09", "desc": "CL"}, {"date": "2026-08-24", "desc": "CL"}, {"date": "2026-08-28", "desc": "CL"}, {"date": "2026-08-31", "desc": "EL"}];
+let extra    = [{"date": "2026-01-05", "desc": "Extra Duty in Group 3", "shift": "A"}];
+
+function getCoff(group, year) {
+  const leaveDates = new Set(leaves.map(l => l.date));
+  const extraMap = new Map(extra.map(e => [e.date, e]));
+  const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
+  const list = [];
+  for (let month=1; month<=12; month++) {
+    const days = daysInMonth(year, month);
+    for (let d=1; d<=days; d++) {
+      const key = isoKey(year, month, d);
+      if (leaveDates.has(key)) continue;
+      const utc = Date.UTC(year, month-1, d);
+      if (extraMap.has(key)) {
+        const e = extraMap.get(key);
+        if (["A","B","C","D"].includes(e.shift)) list.push({date:utc, desc:e.desc, shift:e.shift});
+        continue;
+      }
+      const shift = getShift(group, utc);
+      if (holidayMap.has(key)) {
+        if (["A","B","C","D"].includes(shift)) list.push({date:utc, desc:holidayMap.get(key), shift});
+      } else {
+        const dow = new Date(utc).getUTCDay(); // Sat=6
+        if (["A","B","C","D"].includes(shift) && dow===6 && d>=8 && d<=14) {
+          list.push({date:utc, desc:"2nd Saturday", shift});
+        }
+      }
+    }
+  }
+  return list;
+}
+function getNight(group, year) {
+  const leaveDates = new Set(leaves.map(l => l.date));
+  const extraMap = new Map(extra.map(e => [e.date, e]));
+  const rows = [];
+  for (let month=1; month<=12; month++) {
+    const days = daysInMonth(year, month);
+    const list = [];
+    for (let d=1; d<=days; d++) {
+      const key = isoKey(year, month, d);
+      if (leaveDates.has(key)) continue;
+      // Extra duty on this date overrides the rostered shift (same as C-OFF logic),
+      // so a night (A) extra duty must count here even if the roster shift wasn't A.
+      const effectiveShift = extraMap.has(key) ? extraMap.get(key).shift : getShift(group, Date.UTC(year, month-1, d));
+      if (effectiveShift === "A") list.push(d);
+    }
+    rows.push({month, list});
+  }
+  return rows;
+}
+// How many C-OFFs were missed this year because a leave was taken on a date that
+// would otherwise have qualified (holiday or 2nd Saturday landing on a working shift).
+function getLostCoff(group, year) {
+  const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
+  let count = 0;
+  leaves.forEach(l => {
+    if (!l.date.startsWith(String(year) + '-')) return;
+    const [y,m,d] = l.date.split('-').map(Number);
+    const utc = Date.UTC(y, m-1, d);
+    const shift = getShift(group, utc);
+    if (!["A","B","C","D"].includes(shift)) return;
+    const dow = new Date(utc).getUTCDay();
+    if (holidayMap.has(l.date) || (dow===6 && d>=8 && d<=14)) count++;
+  });
+  return count;
+}
+// How many night-shift (A) allowance days were missed this year because a leave
+// was taken on a date that was rostered as a night shift.
+function getLostNights(group, year) {
+  let count = 0;
+  leaves.forEach(l => {
+    if (!l.date.startsWith(String(year) + '-')) return;
+    const [y,m,d] = l.date.split('-').map(Number);
+    if (getShift(group, Date.UTC(y, m-1, d)) === "A") count++;
+  });
+  return count;
+}
+function shiftExchange(utcDate, group1) {
+  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
+  const mine = shifts[group1-1];
+  const changeNeeded = !(mine === "*" || mine === "D");
+  const options = [];
+  if (changeNeeded) {
+    for (let g=1; g<=4; g++) {
+      if (g === group1) continue;
+      const s = shifts[g-1];
+      options.push({group:g, shift:s, canExchange: (s === "*" || s === "D")});
+    }
+  }
+  return {mine, changeNeeded, options};
+}
+
+// Shared add-with-conflict-check helpers, used by both the Data tab and the
+// Calendar day editor. Each warns (rather than silently overwriting) if the
+// same date already has a conflicting entry, and returns false without
+// changing anything if the user cancels.
+function addHolidayEntry(date, desc){
+  const idx = holidays.findIndex(h => h.date === date);
+  if (idx !== -1) {
+    if (!confirm(`A holiday ("${holidays[idx].desc}") is already recorded on ${date}. Replace it?`)) return false;
+    holidays.splice(idx,1);
+  }
+  holidays.push({date, desc});
+  saveData();
+  return true;
+}
+function addLeaveEntry(date, desc){
+  const leaveIdx = leaves.findIndex(l => l.date === date);
+  const extraIdx = extra.findIndex(e => e.date === date);
+  if (leaveIdx !== -1) {
+    if (!confirm(`A leave ("${leaves[leaveIdx].desc}") is already recorded on ${date}. Replace it?`)) return false;
+    leaves.splice(leaveIdx,1);
+  }
+  if (extraIdx !== -1) {
+    if (!confirm(`Extra duty is already recorded on ${date}. Adding a leave here conflicts with it — remove the extra-duty entry and continue?`)) return false;
+    extra.splice(extraIdx,1);
+  }
+  leaves.push({date, desc});
+  saveData();
+  return true;
+}
+function addExtraEntry(date, desc, shift){
+  const extraIdx = extra.findIndex(e => e.date === date);
+  const leaveIdx = leaves.findIndex(l => l.date === date);
+  if (extraIdx !== -1) {
+    if (!confirm(`Extra duty ("${extra[extraIdx].shift}") is already recorded on ${date}. Replace it?`)) return false;
+    extra.splice(extraIdx,1);
+  }
+  if (leaveIdx !== -1) {
+    if (!confirm(`A leave is already recorded on ${date}. Adding extra duty here conflicts with it — remove the leave and continue?`)) return false;
+    leaves.splice(leaveIdx,1);
+  }
+  extra.push({date, desc, shift});
+  saveData();
+  return true;
+}
+function monthlyRoster(year, month) {
+  const days = daysInMonth(year, month); const rows = [];
+  for (let d=1; d<=days; d++) {
+    const utc = Date.UTC(year, month-1, d);
+    rows.push({utc, shifts:[1,2,3,4].map(g=>getShift(g, utc))});
+  }
+  return rows;
+}
+function shiftCount(year, month) {
+  const days = daysInMonth(year, month); const result = [];
+  for (let g=1; g<=4; g++) {
+    const counts = {A:0,B:0,C:0,D:0,"*":0};
+    for (let d=1; d<=days; d++) counts[getShift(g, Date.UTC(year, month-1, d))]++;
+    result.push({group:g, counts});
+  }
+  return result;
+}
+
+/* ============================= PERSISTENCE (per-device, local only) ============================= */
+const DATA_KEY = 'shiftRosterData_v1';
+const PREF_KEY = 'shiftRosterPrefs_v1';
+function saveData(){
+  try { localStorage.setItem(DATA_KEY, JSON.stringify({holidays, leaves, extra})); } catch(e) {}
+}
+function loadData(){
+  try {
+    const raw = localStorage.getItem(DATA_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (Array.isArray(d.holidays)) holidays = d.holidays;
+      if (Array.isArray(d.leaves)) leaves = d.leaves;
+      if (Array.isArray(d.extra)) extra = d.extra;
+    }
+  } catch(e) {}
+}
+function savePrefs(){
+  try { localStorage.setItem(PREF_KEY, JSON.stringify({
+    group: state.group,
+    basicCoff: state.basicCoff,
+    da: state.da,
+    nightAllow: state.nightAllow
+  })); } catch(e) {}
+}
+function loadPrefs(){
+  const defaults = {group:1, basicCoff:0, da:0, nightAllow:0};
+  try {
+    const raw = localStorage.getItem(PREF_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p.group) defaults.group = p.group;
+      if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
+      if (p.da !== undefined) defaults.da = p.da;
+      if (p.nightAllow !== undefined) defaults.nightAllow = p.nightAllow;
+    }
+  } catch(e) {}
+  return defaults;
+}
+loadData();
+
+/* ============================= STATE ============================= */
+const today = new Date();
+const prefs = loadPrefs();
+const state = {
+  tab: 'today',
+  group: prefs.group,
+  basicCoff: prefs.basicCoff,
+  da: prefs.da,
+  nightAllow: prefs.nightAllow,
+  year: today.getFullYear() >= 2024 && today.getFullYear() <= 2035 ? today.getFullYear() : 2026,
+  month: today.getMonth()+1,
+  day: today.getDate(),
+  calDay: null,     // iso date string selected in the Calendar tab's day editor
+  dataYear: today.getFullYear() >= 2024 && today.getFullYear() <= 2035 ? today.getFullYear() : 2026,
+  undo: null        // {kind, item, idx} - last deleted Data-tab entry, for the Undo banner
+};
+
+const TABS = [
+  ['today','Today'], ['calendar','Calendar'], ['roster','Roster'],
+  ['exchange','Exchange'], ['count','Count'], ['coff','C-OFF'],
+  ['night','Night'], ['data','Data']
+];
+
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function badge(s){ const cls = s==='*' ? 'OFF' : s; const label = s==='*'?'OFF':s; return `<span class="badge ${cls}">${label}</span>`; }
+function yearOptions(sel){ let o=''; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
+function yearOptionsWithAll(sel){ let o=`<option value="0" ${sel==0?'selected':''}>All years</option>`; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
+function monthOptions(sel){ let o=''; MONTH_NAMES.forEach((m,i)=>{ const v=i+1; o+=`<option value="${v}" ${v==sel?'selected':''}>${m}</option>`; }); return o; }
+function dayOptions(sel){ let o=''; for(let d=1;d<=31;d++) o+=`<option value="${d}" ${d==sel?'selected':''}>${d}</option>`; return o; }
+function groupOptions(sel){ let o=''; for(let g=1;g<=4;g++) o+=`<option value="${g}" ${g==sel?'selected':''}>Group ${g}</option>`; return o; }
+
+/* ============================= RENDERERS ============================= */
+function renderMotivate(){
+  const group = state.group;
+  const year = today.getFullYear();
+  const basic = parseFloat(state.basicCoff)||0;
+  const da = parseFloat(state.da)||0;
+  const nightAllow = parseFloat(state.nightAllow)||0;
+
+  if (!basic && !nightAllow) {
+    return `<div class="card">
+      <h2>Your C-OFF &amp; Night Potential</h2>
+      <div class="empty-note">Fill in your Basic Pay, DA% and Night Allowance below to see how much you could be earning this year.</div>
+    </div>`;
+  }
+
+  const perDayCoff = (basic + (basic * da / 100)) / 30;
+  const coffCount = Math.min(getCoff(group, year).length, 50);
+  const maxCoffAmt = perDayCoff * 50;
+  const curCoffAmt = perDayCoff * coffCount;
+
+  const nightRows = getNight(group, year);
+  const curNightCount = nightRows.reduce((s,r) => s + Math.min(r.list.length, 9), 0);
+  const maxNightAmt = nightAllow * 108;
+  const curNightAmt = nightAllow * curNightCount;
+
+  const lostCoff = getLostCoff(group, year);
+  const lostNight = getLostNights(group, year);
+  const lostAmt = (perDayCoff * lostCoff) + (nightAllow * lostNight);
+
+  const coffPct = Math.min(100, Math.round((coffCount/50)*100));
+  const nightPct = Math.min(100, Math.round((curNightCount/108)*100));
+
+  const lossHtml = (lostCoff>0 || lostNight>0) ? `
+    <div class="loss-box">⚠️ Leaves have cost you${lostCoff>0?` <b>${lostCoff} C-OFF${lostCoff!==1?'s':''}</b>`:''}${(lostCoff>0 && lostNight>0)?' and':''}${lostNight>0?` <b>${lostNight} night${lostNight!==1?'s':''}</b>`:''} so far this year — about <b>₹${lostAmt.toFixed(0)}</b> less than you could have earned.</div>` : '';
+
+  return `
+    <div class="card motivate-card">
+      <h2>Your C-OFF &amp; Night Potential — ${year}</h2>
+      <div class="motivate-sub">Group ${group} · Cap: 50 C-OFFs/year · 9 nights/month</div>
+      <div class="stat-block">
+        <div class="stat-head"><span class="label">C-OFF earned</span><span class="val">₹${curCoffAmt.toFixed(0)} / ₹${maxCoffAmt.toFixed(0)}</span></div>
+        <div class="pbar-track"><div class="pbar-fill coff" style="width:${coffPct}%"></div></div>
+        <div class="stat-foot">${coffCount} of 50 C-OFFs used this year</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-head"><span class="label">Night Allowance earned</span><span class="val">₹${curNightAmt.toFixed(0)} / ₹${maxNightAmt.toFixed(0)}</span></div>
+        <div class="pbar-track"><div class="pbar-fill night" style="width:${nightPct}%"></div></div>
+        <div class="stat-foot">${curNightCount} of 108 nights claimed this year</div>
+      </div>
+      ${lossHtml}
+    </div>
+  `;
+}
+
+function renderToday(){
+  const utc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const dateStr = `${String(today.getDate()).padStart(2,'0')} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
+  let cards = '';
+  for (let g=1; g<=4; g++){
+    const s = getShift(g, utc);
+    const cls = s==='*' ? 'OFF' : s;
+    const text = s==='*' ? 'Off today' : `Shift ${s}`;
+    cards += `<div class="grp-card"><div class="glabel">Group ${g}</div>
+      <div class="gshift ${cls}" style="border-radius:8px;padding:4px 0;">${s==='*'?'Off':s}</div>
+      <div class="gtext">${text}</div></div>`;
+  }
+  return `
+    <div class="today-hero"><div class="date">${dateStr}</div><div class="wk">${weekdayName(utc)}</div></div>
+    <div class="grp-grid">${cards}</div>
+    ${renderMotivate()}
+    <div class="card">
+      <h2>Your Details</h2>
+      <div class="hint">Saved on this device — used to calculate your C-OFF and Night allowance amounts.</div>
+      <div class="row">
+        <div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Basic Pay (C-Off calc)</label><input type="number" step="0.01" id="tBasicCoff" value="${state.basicCoff || ''}" placeholder="e.g. 30000"></div>
+        <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDA" value="${state.da || ''}" placeholder="e.g. 53"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCalendar(){
+  const year = state.year, month = state.month;
+  const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
+  const leaveMap = new Map(leaves.map(l => [l.date, l.desc]));
+  const extraMap = new Map(extra.map(e => [e.date, e]));
+  const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const weeks = monthWeeks(year, month).map(week =>
+    week.map(d => d===0 ? null : {day:d, shift:getShift(state.group, Date.UTC(year, month-1, d))}));
+
+  let holCount = 0, satCount = 0, leaveCount = 0, lostCount = 0;
+
+  let grid = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(h=>`<div class="cal-head">${h}</div>`).join('');
+  weeks.forEach(week => week.forEach(cell => {
+    if (!cell){ grid += `<div class="cal-cell cal-empty"></div>`; return; }
+    const cls = cell.shift==='*' ? 'OFF' : cell.shift;
+    const key = isoKey(year, month, cell.day);
+    const cellUTC = Date.UTC(year, month-1, cell.day);
+    const dow = new Date(cellUTC).getUTCDay(); // Sat=6
+    const isSecondSat = dow===6 && cell.day>=8 && cell.day<=14;
+    const isHoliday = holidayMap.has(key);
+    const leaveDesc = leaveMap.get(key);
+    const isWorkingShift = ["A","B","C","D"].includes(cell.shift);
+    const isLost = !!leaveDesc && (isHoliday || isSecondSat) && isWorkingShift;
+
+    if (isHoliday) holCount++;
+    if (isSecondSat) satCount++;
+    if (leaveDesc) leaveCount++;
+    if (isLost) lostCount++;
+
+    const titleBits = [];
+    if (isHoliday) titleBits.push(holidayMap.get(key));
+    if (isSecondSat) titleBits.push('2nd Saturday');
+    if (leaveDesc) titleBits.push(`Leave: ${leaveDesc}`);
+    if (isLost) titleBits.push('C-OFF opportunity lost');
+    const title = titleBits.length ? ` title="${titleBits.join(' | ').replace(/"/g,'&quot;')}"` : '';
+
+    let marks = '';
+    if (isHoliday) marks += '<span class="cal-mark holiday"></span>';
+    if (isSecondSat) marks += '<span class="cal-mark secondsat"></span>';
+    if (leaveDesc) marks += '<span class="cal-mark leave"></span>';
+
+    let extraCls = '';
+    if (cellUTC === todayUTC) extraCls += ' cal-today';
+    if (key === state.calDay) extraCls += ' cal-selected';
+    if (isLost) extraCls += ' cal-lost';
+
+    grid += `<div class="cal-cell ${cls}${extraCls}" data-date="${key}"${title}><span class="d">${cell.day}</span><span>${cell.shift==='*'?'Off':cell.shift}</span>${marks?`<span class="cal-marks">${marks}</span>`:''}</div>`;
+  }));
+
+  // --- Month summary line ---
+  const summaryBits = [`${holCount} Holiday${holCount!==1?'s':''}`, `${satCount} 2nd Saturday${satCount!==1?'s':''}`, `${leaveCount} leave${leaveCount!==1?'s':''} taken`];
+  const summary = `This month: ${summaryBits.join(', ')}` + (lostCount ? ` — <b style="color:#DC2626;">${lostCount} C-OFF${lostCount!==1?'s':''} lost to leave on a holiday/2nd Saturday</b>` : '.');
+
+  // --- Prev/Next month nav ---
+  let prevY=year, prevM=month-1, nextY=year, nextM=month+1;
+  if (prevM<1){prevM=12; prevY--;} if (nextM>12){nextM=1; nextY++;}
+  const navDisabled = (y) => (y<2024 || y>2035) ? ' disabled' : '';
+
+  // --- Day editor panel (only if a valid day in this month/year is selected) ---
+  let dayEditorHtml = '';
+  if (state.calDay && state.calDay.startsWith(`${year}-${String(month).padStart(2,'0')}-`)) {
+    const d = state.calDay;
+    const dUTC = Date.UTC(...d.split('-').map((v,i)=>i===1?Number(v)-1:Number(v)));
+    const dLeave = leaveMap.get(d);
+    const dExtra = extraMap.get(d);
+    const dHoliday = holidayMap.get(d);
+    const dow = new Date(dUTC).getUTCDay();
+    const dSecondSat = dow===6 && Number(d.slice(-2))>=8 && Number(d.slice(-2))<=14;
+    let statusBits = [];
+    if (dHoliday) statusBits.push(`Holiday: ${dHoliday}`);
+    if (dSecondSat) statusBits.push('2nd Saturday');
+    if (!statusBits.length) statusBits.push('Regular day');
+
+    dayEditorHtml = `
+      <div class="card">
+        <h2>${fmtDMY(dUTC)} (${weekdayName(dUTC)})</h2>
+        <div class="hint">${statusBits.join(' &middot; ')}</div>
+        ${dLeave ? `
+          <div class="data-item"><span>Leave: <span class="meta">${dLeave}</span></span><button class="ghost" id="calRemoveLeave">Remove</button></div>
+        ` : `
+          <div class="row">
+            <div class="field" style="flex:2;"><label>Mark Leave (type)</label><input type="text" id="calLeaveDesc" placeholder="e.g. CL / EL"></div>
+          </div>
+          <button class="ghost" id="calAddLeave">+ Add leave on this day</button>
+        `}
+        <div style="height:10px;"></div>
+        ${dExtra ? `
+          <div class="data-item"><span>Extra Duty: <span class="badge ${dExtra.shift}">${dExtra.shift}</span> <span class="meta">${dExtra.desc}</span></span><button class="ghost" id="calRemoveExtra">Remove</button></div>
+        ` : `
+          <div class="row">
+            <div class="field"><label>Extra Duty shift</label><select id="calExtraShift"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+            <div class="field" style="flex:2;"><label>Description</label><input type="text" id="calExtraDesc" placeholder="e.g. Extra duty in Group 2"></div>
+          </div>
+          <button class="ghost" id="calAddExtra">+ Add extra duty on this day</button>
+        `}
+      </div>
+    `;
+  }
+
+  const monthLeaves = leaves.filter(l => l.date.startsWith(`${year}-${String(month).padStart(2,'0')}-`))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const leavesHtml = monthLeaves.length
+    ? monthLeaves.map(l => {
+        const [ly,lm,ld] = l.date.split('-').map(Number);
+        return `<div class="data-item"><span>${fmtDMY(Date.UTC(ly, lm-1, ld))}</span><span class="meta">${l.desc}</span></div>`;
+      }).join('')
+    : '<div class="empty-note">No leaves taken this month.</div>';
+
+  return `
+    <div class="card">
+      <h2>Calendar</h2>
+      <div class="row">
+        <div class="field"><label>Group</label><select id="cGroup">${groupOptions(state.group)}</select></div>
+        <div class="field"><label>Year</label><select id="cYear">${yearOptions(state.year)}</select></div>
+        <div class="field"><label>Month</label><select id="cMonth">${monthOptions(state.month)}</select></div>
+      </div>
+      <div class="cal-legend">
+        <span><span class="cal-mark holiday"></span> Holiday</span>
+        <span><span class="cal-mark secondsat"></span> 2nd Saturday</span>
+        <span><span class="cal-mark leave"></span> Leave taken</span>
+        <span><span class="cal-mark lost"></span> C-OFF lost</span>
+      </div>
+      <div class="hint" style="margin:10px 0 0;">${summary}</div>
+    </div>
+    <div class="cal-month">
+      <div class="cal-nav">
+        <button class="ghost" id="calPrev"${navDisabled(prevY)}>&larr; ${MONTH_NAMES[prevM-1].slice(0,3)}</button>
+        <h3>${MONTH_NAMES[month-1]} ${year}</h3>
+        <button class="ghost" id="calNext"${navDisabled(nextY)}>${MONTH_NAMES[nextM-1].slice(0,3)} &rarr;</button>
+      </div>
+      <div class="cal-grid">${grid}</div>
+    </div>
+    ${dayEditorHtml}
+    <div class="card">
+      <h2>Leaves in ${MONTH_NAMES[month-1]}</h2>
+      ${leavesHtml}
+    </div>
+  `;
+}
+
+function renderRoster(){
+  const rows = monthlyRoster(state.year, state.month);
+  const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  let body = rows.map(r => `<tr${r.utc===todayUTC ? ' class="today-row"':''}><td>${fmtDMY(r.utc)}</td><td>${weekdayName(r.utc).slice(0,3)}</td>
+    ${r.shifts.map(s=>`<td>${badge(s)}</td>`).join('')}</tr>`).join('');
+  return `
+    <div class="card">
+      <h2>Monthly Roster</h2>
+      <div class="row">
+        <div class="field"><label>Year</label><select id="rYear">${yearOptions(state.year)}</select></div>
+        <div class="field"><label>Month</label><select id="rMonth">${monthOptions(state.month)}</select></div>
+      </div>
+    </div>
+    <div class="card"><table>
+      <tr><th>Date</th><th>Day</th><th>G1</th><th>G2</th><th>G3</th><th>G4</th></tr>
+      ${body}
+    </table></div>
+  `;
+}
+
+function renderExchange(){
+  const utc = Date.UTC(state.year, state.month-1, state.day);
+  const r = shiftExchange(utc, state.group);
+  let body;
+  if (!r.changeNeeded) {
+    body = `<p class="empty-note">Group ${state.group} has shift ${r.mine} — change not needed.</p>`;
+  } else {
+    const lines = r.options.map(o => `<div class="exchange-line">
+      <span>Group ${o.group} — ${badge(o.shift)}</span>
+      <span class="pill ${o.canExchange?'yes':'no'}">${o.canExchange?'Can exchange':'Cannot exchange'}</span>
+    </div>`).join('');
+    body = `<div class="hint">Your shift: ${badge(r.mine)} on ${fmtDMY(utc)} (${weekdayName(utc)})</div>${lines}`;
+  }
+  return `
+    <div class="card">
+      <h2>Shift Exchange</h2>
+      <div class="row">
+        <div class="field"><label>Group</label><select id="eGroup">${groupOptions(state.group)}</select></div>
+        <div class="field"><label>Year</label><select id="eYear">${yearOptions(state.year)}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Month</label><select id="eMonth">${monthOptions(state.month)}</select></div>
+        <div class="field"><label>Day</label><select id="eDay">${dayOptions(state.day)}</select></div>
+      </div>
+    </div>
+    <div class="card">${body}</div>
+  `;
+}
+
+function renderCount(){
+  const result = shiftCount(state.year, state.month);
+  const body = result.map(r => `<tr><td>G${r.group}</td><td>${r.counts.A}</td><td>${r.counts.B}</td>
+    <td>${r.counts.C}</td><td>${r.counts.D}</td><td>${r.counts['*']}</td></tr>`).join('');
+  return `
+    <div class="card">
+      <h2>Count Shifts</h2>
+      <div class="row">
+        <div class="field"><label>Year</label><select id="ctYear">${yearOptions(state.year)}</select></div>
+        <div class="field"><label>Month</label><select id="ctMonth">${monthOptions(state.month)}</select></div>
+      </div>
+    </div>
+    <div class="card"><table>
+      <tr><th>Group</th><th>A</th><th>B</th><th>C</th><th>D</th><th>Off</th></tr>
+      ${body}
+    </table></div>
+  `;
+}
+
+function renderCoff(){
+  const list = getCoff(state.group, state.year);
+  const body = list.map(c => `<tr><td>${fmtDMY(c.date)}</td><td class="desc">${c.desc}</td><td>${badge(c.shift)}</td></tr>`).join('');
+  const basic = parseFloat(state.basicCoff)||0;
+  const da = parseFloat(state.da)||0;
+  const perDay = (basic + (basic * da / 100)) / 30;
+  const totalAmount = perDay * list.length;
+  return `
+    <div class="card">
+      <h2>C-OFF List</h2>
+      <div class="row">
+        <div class="field"><label>Group</label><select id="coGroup">${groupOptions(state.group)}</select></div>
+        <div class="field"><label>Year</label><select id="coYear">${yearOptions(state.year)}</select></div>
+      </div>
+    </div>
+    <div class="card">
+      <table><tr><th>Date</th><th>Description</th><th>Shift</th></tr>${body || '<tr><td colspan="3" class="empty-note">No C-OFFs found</td></tr>'}</table>
+      <div class="total-line"><span>Total C-OFFs</span><span>${list.length}</span></div>
+      <div class="total-line"><span>Total C-OFF Amount</span><span>₹${totalAmount.toFixed(2)}</span></div>
+    </div>
+  `;
+}
+
+function renderNight(){
+  const rows = getNight(state.group, state.year);
+  const body = rows.map(r => `<tr><td>${MONTH_NAMES[r.month-1].slice(0,3)}-${String(state.year).slice(2)}</td>
+    <td class="desc">${r.list.join(', ') || '—'}</td><td>${r.list.length}</td></tr>`).join('');
+  const totalNights = rows.reduce((s,r)=>s+r.list.length,0);
+  const nightAllow = parseFloat(state.nightAllow)||0;
+  const totalAllowance = nightAllow * totalNights;
+  return `
+    <div class="card">
+      <h2>Night Shift List</h2>
+      <div class="row">
+        <div class="field"><label>Group</label><select id="nGroup">${groupOptions(state.group)}</select></div>
+        <div class="field"><label>Year</label><select id="nYear">${yearOptions(state.year)}</select></div>
+      </div>
+    </div>
+    <div class="card">
+      <table><tr><th>Month</th><th>Dates</th><th>Count</th></tr>${body}</table>
+      <div class="total-line"><span>Total Night Shifts</span><span>${totalNights}</span></div>
+      <div class="total-line"><span>Total Night Allowance</span><span>₹${totalAllowance.toFixed(2)}</span></div>
+    </div>
+  `;
+}
+
+function renderData(){
+  function list(arr, kind){
+    const withIdx = arr.map((item,i) => ({item,i}));
+    const filtered = state.dataYear === 0 ? withIdx : withIdx.filter(x => x.item.date.startsWith(String(state.dataYear)+'-'));
+    filtered.sort((a,b) => a.item.date.localeCompare(b.item.date));
+    if (!filtered.length) return '<p class="empty-note">No entries yet</p>';
+    return filtered.map(({item,i}) => `<div class="data-item">
+      <span>${item.desc}${item.shift ? ` <span class="badge ${item.shift}">${item.shift}</span>`:''}</span>
+      <span class="meta">${item.date}</span>
+      <button class="del" data-kind="${kind}" data-idx="${i}">×</button>
+    </div>`).join('');
+  }
+  const undoHtml = state.undo ? `
+    <div class="undo-banner">
+      <span>Deleted "${state.undo.item.desc}" (${state.undo.item.date}).</span>
+      <span><button id="undoDelete">Undo</button> <button id="undoDismiss" style="color:var(--ink-soft);">✕</button></span>
+    </div>
+  ` : '';
+  return `
+    ${undoHtml}
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>Show entries for</label><select id="ddYear">${yearOptionsWithAll(state.dataYear)}</select></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Holidays</h2>
+      <div class="hint">Official holidays — used by C-OFF.</div>
+      ${list(holidays,'holidays')}
+      <div class="row" style="margin-top:10px;">
+        <div class="field"><label>Date</label><input type="date" id="newHolDate"></div>
+        <div class="field" style="flex:2;"><label>Description</label><input type="text" id="newHolDesc" placeholder="e.g. Diwali"></div>
+      </div>
+      <button class="ghost" id="addHoliday">+ Add holiday</button>
+    </div>
+    <div class="card">
+      <h2>Leaves</h2>
+      <div class="hint">Days you took leave — skipped entirely in C-OFF and Night calculations.</div>
+      ${list(leaves,'leaves')}
+      <div class="row" style="margin-top:10px;">
+        <div class="field"><label>Date</label><input type="date" id="newLeaveDate"></div>
+        <div class="field" style="flex:2;"><label>Type</label><input type="text" id="newLeaveDesc" placeholder="e.g. CL / EL"></div>
+      </div>
+      <button class="ghost" id="addLeave">+ Add leave</button>
+    </div>
+    <div class="card">
+      <h2>Extra Duty</h2>
+      <div class="hint">Off days you were called in — the Shift you enter here is used directly, not calculated.</div>
+      ${list(extra,'extra')}
+      <div class="row" style="margin-top:10px;">
+        <div class="field"><label>Date</label><input type="date" id="newExtraDate"></div>
+        <div class="field"><label>Shift worked</label><select id="newExtraShift">
+          <option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+      </div>
+      <div class="row"><div class="field" style="flex:1;"><label>Description</label><input type="text" id="newExtraDesc" placeholder="e.g. Extra duty"></div></div>
+      <button class="ghost" id="addExtra">+ Add extra duty</button>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <div class="hint">This data is saved only on this device (this app is shared, but everyone's Group, leaves and extra duty stay private to their own phone). Use Export to keep a backup, or to move your data to another device.</div>
+      <div class="row">
+        <button class="ghost" id="exportData" style="flex:1;">Export data</button>
+        <button class="ghost" id="importBtn" style="flex:1;">Import data</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none;">
+    </div>
+  `;
+}
+
+const RENDERERS = {today:renderToday, calendar:renderCalendar, roster:renderRoster,
+  exchange:renderExchange, count:renderCount, coff:renderCoff, night:renderNight, data:renderData};
+
+/* ============================= WIRE-UP ============================= */
+function bindCommon(prefix, fields){
+  fields.forEach(([id,key,type]) => {
+    const node = document.getElementById(prefix+id);
+    if (node) node.addEventListener('change', e => {
+      let v = e.target.value;
+      if (type === 'float') v = parseFloat(v) || 0;
+      else if (type) v = parseInt(v,10);
+      state[key] = v;
+      if (['group','basicCoff','da','nightAllow'].includes(key)) savePrefs();
+      render();
+    });
+  });
+}
+function bindTabInputs(){
+  bindCommon('t', [['Group','group',true],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
+  bindCommon('c', [['Group','group',true],['Year','year',true],['Month','month',true]]);
+  bindCommon('r', [['Year','year',true],['Month','month',true]]);
+  bindCommon('e', [['Group','group',true],['Year','year',true],['Month','month',true],['Day','day',true]]);
+  bindCommon('ct',[['Year','year',true],['Month','month',true]]);
+  bindCommon('co',[['Group','group',true],['Year','year',true]]);
+  bindCommon('n', [['Group','group',true],['Year','year',true]]);
+  bindCommon('dd',[['Year','dataYear',true]]);
+
+  if (state.tab === 'calendar') {
+    document.querySelectorAll('.cal-cell[data-date]').forEach(cell => cell.addEventListener('click', () => {
+      const d = cell.dataset.date;
+      state.calDay = (state.calDay === d) ? null : d; // tap again to close
+      render();
+    }));
+    const prevBtn = document.getElementById('calPrev');
+    if (prevBtn) prevBtn.addEventListener('click', () => {
+      let m = state.month-1, y = state.year;
+      if (m<1){ m=12; y--; }
+      if (y<2024) return;
+      state.month=m; state.year=y; state.calDay=null; render();
+    });
+    const nextBtn = document.getElementById('calNext');
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+      let m = state.month+1, y = state.year;
+      if (m>12){ m=1; y++; }
+      if (y>2035) return;
+      state.month=m; state.year=y; state.calDay=null; render();
+    });
+    const addLeaveBtn = document.getElementById('calAddLeave');
+    if (addLeaveBtn) addLeaveBtn.addEventListener('click', () => {
+      const desc = document.getElementById('calLeaveDesc').value.trim();
+      if (!desc) { alert('Enter a leave type (e.g. CL / EL)'); return; }
+      addLeaveEntry(state.calDay, desc);
+      render();
+    });
+    const removeLeaveBtn = document.getElementById('calRemoveLeave');
+    if (removeLeaveBtn) removeLeaveBtn.addEventListener('click', () => {
+      const idx = leaves.findIndex(l => l.date === state.calDay);
+      if (idx !== -1) { leaves.splice(idx,1); saveData(); }
+      render();
+    });
+    const addExtraBtn = document.getElementById('calAddExtra');
+    if (addExtraBtn) addExtraBtn.addEventListener('click', () => {
+      const shift = document.getElementById('calExtraShift').value;
+      const desc = document.getElementById('calExtraDesc').value.trim() || 'Extra duty';
+      addExtraEntry(state.calDay, desc, shift);
+      render();
+    });
+    const removeExtraBtn = document.getElementById('calRemoveExtra');
+    if (removeExtraBtn) removeExtraBtn.addEventListener('click', () => {
+      const idx = extra.findIndex(e => e.date === state.calDay);
+      if (idx !== -1) { extra.splice(idx,1); saveData(); }
+      render();
+    });
+  }
+
+  if (state.tab === 'data') {
+    document.getElementById('addHoliday').addEventListener('click', () => {
+      const d = document.getElementById('newHolDate').value, desc = document.getElementById('newHolDesc').value.trim();
+      if (!d || !desc) { alert('Enter both date and description'); return; }
+      if (addHolidayEntry(d, desc)) { state.undo = null; render(); }
+    });
+    document.getElementById('addLeave').addEventListener('click', () => {
+      const d = document.getElementById('newLeaveDate').value, desc = document.getElementById('newLeaveDesc').value.trim();
+      if (!d || !desc) { alert('Enter both date and type'); return; }
+      if (addLeaveEntry(d, desc)) { state.undo = null; render(); }
+    });
+    document.getElementById('addExtra').addEventListener('click', () => {
+      const d = document.getElementById('newExtraDate').value, desc = document.getElementById('newExtraDesc').value.trim() || 'Extra duty';
+      const shift = document.getElementById('newExtraShift').value;
+      if (!d) { alert('Enter a date'); return; }
+      if (addExtraEntry(d, desc, shift)) { state.undo = null; render(); }
+    });
+    document.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => {
+      const kind = b.dataset.kind, idx = parseInt(b.dataset.idx,10);
+      const arr = kind==='holidays' ? holidays : kind==='leaves' ? leaves : extra;
+      const [removed] = arr.splice(idx,1);
+      state.undo = {kind, item:removed, idx};
+      saveData();
+      render();
+    }));
+    const undoBtn = document.getElementById('undoDelete');
+    if (undoBtn) undoBtn.addEventListener('click', () => {
+      if (!state.undo) return;
+      const {kind, item, idx} = state.undo;
+      const arr = kind==='holidays' ? holidays : kind==='leaves' ? leaves : extra;
+      arr.splice(idx, 0, item);
+      state.undo = null;
+      saveData();
+      render();
+    });
+    const dismissBtn = document.getElementById('undoDismiss');
+    if (dismissBtn) dismissBtn.addEventListener('click', () => { state.undo = null; render(); });
+    document.getElementById('exportData').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify({holidays,leaves,extra}, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `shift-roster-data-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    });
+    document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+    document.getElementById('importFile').addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const d = JSON.parse(reader.result);
+          if (!confirm('This will replace all existing holidays, leaves and extra-duty data on this device with the contents of this file. Continue?')) {
+            e.target.value = '';
+            return;
+          }
+          holidays = d.holidays || []; leaves = d.leaves || []; extra = d.extra || [];
+          state.undo = null;
+          saveData();
+          render();
+          alert('Data imported.');
+        } catch { alert('Could not read that file.'); }
+      };
+      reader.readAsText(file);
+    });
+  }
+}
+
+function render(){
+  document.getElementById('content').innerHTML = RENDERERS[state.tab]();
+  document.getElementById('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab===state.tab));
+  bindTabInputs();
+}
+
+function init(){
+  document.getElementById('headerDate').textContent =
+    `${WEEKDAYS[today.getDay()]}, ${String(today.getDate()).padStart(2,'0')} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
+  const tabsNav = document.getElementById('tabs');
+  TABS.forEach(([id,label]) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.tab = id;
+    b.addEventListener('click', () => { state.tab = id; render(); });
+    tabsNav.appendChild(b);
+  });
+  render();
+}
+init();
+</script>
+</body>
+</html>
