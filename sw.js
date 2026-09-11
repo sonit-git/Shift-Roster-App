@@ -1,6 +1,6 @@
 // Bump this version string whenever you upload a new version of index.html
 // so old phones fetch the update instead of serving a stale cached copy.
-const CACHE_NAME = 'shift-roster-v1';
+const CACHE_NAME = 'shift-roster-v2';
 const ASSETS = [
   './',
   './index.html',

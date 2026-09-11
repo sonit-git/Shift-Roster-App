@@ -37,6 +37,8 @@
     display:flex;flex-direction:column;}
   header{background:var(--ink);color:#fff;padding:18px 18px 14px;}
   header .brand{display:flex;align-items:baseline;justify-content:space-between;}
+  .dept-badge{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--accent-ink);
+    background:var(--accent);padding:3px 9px;border-radius:20px;}
   header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px;}
   header .sub{font-size:12px;color:#94A3B8;margin-top:2px;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 10px;background:var(--ink);
@@ -142,7 +144,7 @@
 <body>
 <div class="shell">
   <header>
-    <div class="brand"><h1>Shift Roster</h1></div>
+    <div class="brand"><h1>Shift Roster</h1><span class="dept-badge" id="deptBadge"></span></div>
     <div class="sub" id="headerDate"></div>
   </header>
   <nav class="tabs" id="tabs"></nav>
@@ -151,12 +153,23 @@
 
 <script>
 /* ============================= CORE SHIFT LOGIC ============================= */
+// OPN department — 28-day cycle
 const groupOffset = { 1: 9, 2: 16, 3: 23, 4: 2 };
 const cycle = ["A","A","A","*","A","A","A","B","B","B","B","*","B","B",
                "*","C","C","C","C","C","C","C","D","*","A","B","D","D"];
 const REF_DATE = Date.UTC(2026, 7, 11); // 11 Aug 2026
 
+// IMD department — 8-day cycle: A,A,B,B,C,C,D,Off (repeating)
+const imdGroupOffset = { 1: 3, 2: 5, 3: 7, 4: 1 };
+const imdCycle = ["A","A","B","B","C","C","D","*"];
+const IMD_REF_DATE = Date.UTC(2026, 8, 1); // 1 Sep 2026
+
 function getShift(group, dateUTC) {
+  if (state.department === 'IMD') {
+    const dt = Math.round((dateUTC - IMD_REF_DATE) / 86400000);
+    const idx = (((imdGroupOffset[group] + dt) % 8) + 8) % 8;
+    return imdCycle[idx];
+  }
   const dt = Math.round((dateUTC - REF_DATE) / 86400000);
   const shift = groupOffset[group] + dt;
   const ds = (((shift - 1) % 28) + 28) % 28;
@@ -357,18 +370,20 @@ function loadData(){
 function savePrefs(){
   try { localStorage.setItem(PREF_KEY, JSON.stringify({
     group: state.group,
+    department: state.department,
     basicCoff: state.basicCoff,
     da: state.da,
     nightAllow: state.nightAllow
   })); } catch(e) {}
 }
 function loadPrefs(){
-  const defaults = {group:1, basicCoff:0, da:0, nightAllow:0};
+  const defaults = {group:1, department:'OPN', basicCoff:0, da:0, nightAllow:0};
   try {
     const raw = localStorage.getItem(PREF_KEY);
     if (raw) {
       const p = JSON.parse(raw);
       if (p.group) defaults.group = p.group;
+      if (p.department === 'OPN' || p.department === 'IMD') defaults.department = p.department;
       if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
       if (p.da !== undefined) defaults.da = p.da;
       if (p.nightAllow !== undefined) defaults.nightAllow = p.nightAllow;
@@ -384,6 +399,7 @@ const prefs = loadPrefs();
 const state = {
   tab: 'today',
   group: prefs.group,
+  department: prefs.department,
   basicCoff: prefs.basicCoff,
   da: prefs.da,
   nightAllow: prefs.nightAllow,
@@ -408,6 +424,9 @@ function yearOptionsWithAll(sel){ let o=`<option value="0" ${sel==0?'selected':'
 function monthOptions(sel){ let o=''; MONTH_NAMES.forEach((m,i)=>{ const v=i+1; o+=`<option value="${v}" ${v==sel?'selected':''}>${m}</option>`; }); return o; }
 function dayOptions(sel){ let o=''; for(let d=1;d<=31;d++) o+=`<option value="${d}" ${d==sel?'selected':''}>${d}</option>`; return o; }
 function groupOptions(sel){ let o=''; for(let g=1;g<=4;g++) o+=`<option value="${g}" ${g==sel?'selected':''}>Group ${g}</option>`; return o; }
+function deptOptions(sel){
+  return `<option value="OPN" ${sel==='OPN'?'selected':''}>OPN</option><option value="IMD" ${sel==='IMD'?'selected':''}>IMD</option>`;
+}
 
 /* ============================= RENDERERS ============================= */
 function renderMotivate(){
@@ -483,6 +502,7 @@ function renderToday(){
       <h2>Your Details</h2>
       <div class="hint">Saved on this device — used to calculate your C-OFF and Night allowance amounts.</div>
       <div class="row">
+        <div class="field"><label>Department</label><select id="tDepartment">${deptOptions(state.department)}</select></div>
         <div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>
       </div>
       <div class="row">
@@ -831,13 +851,13 @@ function bindCommon(prefix, fields){
       if (type === 'float') v = parseFloat(v) || 0;
       else if (type) v = parseInt(v,10);
       state[key] = v;
-      if (['group','basicCoff','da','nightAllow'].includes(key)) savePrefs();
+      if (['group','department','basicCoff','da','nightAllow'].includes(key)) savePrefs();
       render();
     });
   });
 }
 function bindTabInputs(){
-  bindCommon('t', [['Group','group',true],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
+  bindCommon('t', [['Department','department'],['Group','group',true],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
   bindCommon('c', [['Group','group',true],['Year','year',true],['Month','month',true]]);
   bindCommon('r', [['Year','year',true],['Month','month',true]]);
   bindCommon('e', [['Group','group',true],['Year','year',true],['Month','month',true],['Day','day',true]]);
@@ -964,6 +984,8 @@ function bindTabInputs(){
 function render(){
   document.getElementById('content').innerHTML = RENDERERS[state.tab]();
   document.getElementById('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab===state.tab));
+  const badge = document.getElementById('deptBadge');
+  if (badge) badge.textContent = state.department;
   bindTabInputs();
 }
 
