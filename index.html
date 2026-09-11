@@ -139,6 +139,8 @@
   .loss-box{background:rgba(248,113,113,.16);border:1px solid rgba(248,113,113,.4);
     border-radius:10px;padding:10px 12px;margin-top:14px;font-size:12px;line-height:1.5;color:#FEE2E2;}
   .loss-box b{color:#FCA5A5;}
+  .backup-reminder{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;
+    border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -355,6 +357,17 @@ const DATA_KEY = 'shiftRosterData_v1';
 const PREF_KEY = 'shiftRosterPrefs_v1';
 function saveData(){
   try { localStorage.setItem(DATA_KEY, JSON.stringify({holidays, leaves, extra})); } catch(e) {}
+}
+/* ---------- CSV / Excel export helpers ---------- */
+function csvEscape(v){ return `"${String(v ?? '').replace(/"/g,'""')}"`; }
+function rowsToCSV(rows){ return rows.map(r => r.map(csvEscape).join(',')).join('\r\n'); }
+function downloadCSV(filename, csvContent){
+  // BOM so Excel opens UTF-8 CSVs correctly instead of showing garbled text.
+  const blob = new Blob(["\uFEFF" + csvContent], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
 }
 function loadData(){
   try {
@@ -743,6 +756,7 @@ function renderCoff(){
       <table><tr><th>Date</th><th>Description</th><th>Shift</th></tr>${body || '<tr><td colspan="3" class="empty-note">No C-OFFs found</td></tr>'}</table>
       <div class="total-line"><span>Total C-OFFs</span><span>${list.length}</span></div>
       <div class="total-line"><span>Total C-OFF Amount</span><span>₹${totalAmount.toFixed(2)}</span></div>
+      <button class="ghost" id="coExportCsv" style="margin-top:12px;width:100%;">Export to Excel (CSV)</button>
     </div>
   `;
 }
@@ -766,6 +780,7 @@ function renderNight(){
       <table><tr><th>Month</th><th>Dates</th><th>Count</th></tr>${body}</table>
       <div class="total-line"><span>Total Night Shifts</span><span>${totalNights}</span></div>
       <div class="total-line"><span>Total Night Allowance</span><span>₹${totalAllowance.toFixed(2)}</span></div>
+      <button class="ghost" id="nExportCsv" style="margin-top:12px;width:100%;">Export to Excel (CSV)</button>
     </div>
   `;
 }
@@ -789,6 +804,7 @@ function renderData(){
     </div>
   ` : '';
   return `
+    <div class="backup-reminder">⚠️ Your data lives only on this phone. Take a JSON backup regularly (Backup section below) — if this device is lost, reset, or the app's cache is cleared, unbacked-up data cannot be recovered.</div>
     ${undoHtml}
     <div class="card">
       <div class="row">
@@ -829,12 +845,13 @@ function renderData(){
     </div>
     <div class="card">
       <h2>Backup</h2>
-      <div class="hint">This data is saved only on this device (this app is shared, but everyone's Group, leaves and extra duty stay private to their own phone). Use Export to keep a backup, or to move your data to another device.</div>
+      <div class="hint">This data is saved only on this device (this app is shared, but everyone's Group, leaves and extra duty stay private to their own phone). Export as JSON to keep a full backup or move your data to another device — keep this available and use it regularly.</div>
       <div class="row">
-        <button class="ghost" id="exportData" style="flex:1;">Export data</button>
+        <button class="ghost" id="exportData" style="flex:1;">Export as JSON (Backup)</button>
         <button class="ghost" id="importBtn" style="flex:1;">Import data</button>
       </div>
       <input type="file" id="importFile" accept=".json" style="display:none;">
+      <button class="ghost" id="exportAllCsv" style="margin-top:10px;width:100%;">Export as Excel (CSV) — Holidays + Leaves + Extra Duty</button>
     </div>
   `;
 }
@@ -865,6 +882,37 @@ function bindTabInputs(){
   bindCommon('co',[['Group','group',true],['Year','year',true]]);
   bindCommon('n', [['Group','group',true],['Year','year',true]]);
   bindCommon('dd',[['Year','dataYear',true]]);
+
+  if (state.tab === 'coff') {
+    const btn = document.getElementById('coExportCsv');
+    if (btn) btn.addEventListener('click', () => {
+      const list = getCoff(state.group, state.year);
+      const basic = parseFloat(state.basicCoff)||0;
+      const da = parseFloat(state.da)||0;
+      const perDay = (basic + (basic * da / 100)) / 30;
+      const rows = [['Date','Description','Shift']];
+      list.forEach(c => rows.push([fmtDMY(c.date), c.desc, c.shift]));
+      rows.push([]);
+      rows.push(['Total C-OFFs', list.length]);
+      rows.push(['Total C-OFF Amount (₹)', (perDay*list.length).toFixed(2)]);
+      downloadCSV(`c-off-group${state.group}-${state.year}.csv`, rowsToCSV(rows));
+    });
+  }
+
+  if (state.tab === 'night') {
+    const btn = document.getElementById('nExportCsv');
+    if (btn) btn.addEventListener('click', () => {
+      const nrows = getNight(state.group, state.year);
+      const nightAllow = parseFloat(state.nightAllow)||0;
+      const totalNights = nrows.reduce((s,r)=>s+r.list.length,0);
+      const rows = [['Month','Dates','Count']];
+      nrows.forEach(r => rows.push([`${MONTH_NAMES[r.month-1]}-${state.year}`, r.list.join(', ') || '—', r.list.length]));
+      rows.push([]);
+      rows.push(['Total Night Shifts', totalNights]);
+      rows.push(['Total Night Allowance (₹)', (nightAllow*totalNights).toFixed(2)]);
+      downloadCSV(`night-shift-group${state.group}-${state.year}.csv`, rowsToCSV(rows));
+    });
+  }
 
   if (state.tab === 'calendar') {
     document.querySelectorAll('.cal-cell[data-date]').forEach(cell => cell.addEventListener('click', () => {
@@ -957,6 +1005,16 @@ function bindTabInputs(){
       a.href = URL.createObjectURL(blob);
       a.download = `shift-roster-data-${new Date().toISOString().slice(0,10)}.json`;
       a.click();
+    });
+    document.getElementById('exportAllCsv').addEventListener('click', () => {
+      const rows = [['Type','Date','Description','Shift']];
+      const combined = [
+        ...holidays.map(h => ({type:'Holiday', date:h.date, desc:h.desc, shift:''})),
+        ...leaves.map(l => ({type:'Leave', date:l.date, desc:l.desc, shift:''})),
+        ...extra.map(x => ({type:'Extra Duty', date:x.date, desc:x.desc, shift:x.shift}))
+      ].sort((a,b) => a.date.localeCompare(b.date));
+      combined.forEach(r => rows.push([r.type, r.date, r.desc, r.shift]));
+      downloadCSV(`shift-roster-data-${new Date().toISOString().slice(0,10)}.csv`, rowsToCSV(rows));
     });
     document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
     document.getElementById('importFile').addEventListener('change', e => {
