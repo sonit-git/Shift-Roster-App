@@ -22,16 +22,25 @@
 <style>
   :root{
     --ink:#0F172A; --ink-soft:#475569; --paper:#F1F5F9; --card:#FFFFFF;
-    --line:#E2E8F0; --accent:#0E7490; --accent-ink:#FFFFFF;
+    --line:#E2E8F0; --accent:#0E7490; --accent-ink:#FFFFFF; --nav-bg:#0F172A;
+    --input-bg:#FFFFFF;
     --A:#16A34A; --B:#2563EB; --C:#EA580C; --D:#CA8A04; --OFF:#64748B;
     --A-bg:#DCFCE7; --B-bg:#DBEAFE; --C-bg:#FFEDD5; --D-bg:#FEF3C7; --OFF-bg:#E2E8F0;
+  }
+  [data-theme="dark"]{
+    --ink:#E2E8F0; --ink-soft:#94A3B8; --paper:#0B1220; --card:#151E2E;
+    --line:#243044; --accent:#22D3EE; --accent-ink:#0B1220; --nav-bg:#0F172A;
+    --input-bg:#1E293B;
+    --A:#4ADE80; --B:#60A5FA; --C:#FB923C; --D:#FACC15; --OFF:#94A3B8;
+    --A-bg:rgba(74,222,128,.15); --B-bg:rgba(96,165,250,.16); --C-bg:rgba(251,146,60,.16);
+    --D-bg:rgba(250,204,21,.16); --OFF-bg:rgba(148,163,184,.16);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
     background:var(--paper); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
+    -webkit-font-smoothing:antialiased; transition:background-color .2s,color .2s;
   }
   .shell{width:100%;max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);
     display:flex;flex-direction:column;}
@@ -41,7 +50,7 @@
     background:var(--accent);padding:3px 9px;border-radius:20px;}
   header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px;}
   header .sub{font-size:12px;color:#94A3B8;margin-top:2px;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
-  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 10px;background:var(--ink);
+  nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 10px;background:var(--nav-bg);
     scrollbar-width:none;}
   nav.tabs::-webkit-scrollbar{display:none;}
   nav.tabs button{flex:0 0 auto;background:#1E293B;color:#CBD5E1;border:none;
@@ -55,9 +64,9 @@
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
   .field{flex:1;min-width:90px;display:flex;flex-direction:column;gap:4px;}
   .field label{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:none;}
-  select,input[type=date],input[type=text]{
+  select,input[type=date],input[type=text],input[type=number]{
     font-size:15px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
-    background:#fff;color:var(--ink);width:100%;font-family:inherit;}
+    background:var(--input-bg);color:var(--ink);width:100%;font-family:inherit;transition:background-color .2s,color .2s;}
   button.primary{background:var(--accent);color:#fff;border:none;border-radius:9px;
     padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
   button.primary:active{opacity:.85;}
@@ -65,7 +74,7 @@
     border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:600;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th{text-align:left;font-size:11px;color:var(--ink-soft);padding:6px 6px;border-bottom:1px solid var(--line);}
-  td{padding:7px 6px;border-bottom:1px solid #F1F5F9;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  td{padding:7px 6px;border-bottom:1px solid var(--line);font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   td.desc{font-family:inherit;}
   .badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;
     height:22px;padding:0 6px;border-radius:6px;font-weight:700;font-size:12px;
@@ -118,19 +127,20 @@
     background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;
     margin-bottom:12px;font-size:12.5px;color:#92400E;}
   .undo-banner button{background:none;border:none;color:#0E7490;font-weight:700;font-size:12.5px;cursor:pointer;}
-  .exchange-line{padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;display:flex;
+  .exchange-line{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;display:flex;
     justify-content:space-between;align-items:center;}
   .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
   .pill.yes{background:#DCFCE7;color:#166534;} .pill.no{background:#FEE2E2;color:#991B1B;}
   .empty-note{font-size:12px;color:var(--ink-soft);text-align:center;padding:14px 0;}
   .data-item{display:flex;justify-content:space-between;align-items:center;
-    padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;gap:8px;}
+    padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;gap:8px;}
   .data-item .meta{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;color:var(--ink-soft);}
   .data-item .del{background:none;border:none;color:#DC2626;font-size:16px;cursor:pointer;padding:2px 6px;}
   .hint{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
   .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:13px;
     padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);}
   tr.today-row td{background:#CFFAFE;font-weight:700;}
+  [data-theme="dark"] tr.today-row td{background:#164E63;color:#fff;}
   .motivate-card{background:linear-gradient(135deg,#0E7490,#0F172A);color:#fff;border:none;
     box-shadow:0 6px 18px rgba(14,116,144,.25);}
   .motivate-card h2{color:#fff;}
@@ -150,6 +160,7 @@
   .loss-box b{color:#FCA5A5;}
   .backup-reminder{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;
     border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:14px;}
+  .backup-reminder.ok{background:#DCFCE7;border-color:#86EFAC;color:#166534;}
 
   /* ---------- Responsive: tablets & desktops adapt instead of staying phone-width ---------- */
   @media (min-width:700px){
@@ -161,7 +172,8 @@
     .grp-grid{grid-template-columns:repeat(4,1fr);}
     .today-layout{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start;}
     .today-layout .card,.today-layout .today-hero,.today-layout .motivate-card{margin-bottom:0;}
-    .today-main{display:flex;flex-direction:column;gap:14px;}
+    .today-main{display:flex;flex-direction:column;gap:14px;grid-column:1;}
+    .today-side{grid-column:2;}
   }
   @media (min-width:1024px){
     .shell{max-width:1040px;}
@@ -387,6 +399,19 @@ function shiftCount(year, month) {
 /* ============================= PERSISTENCE (per-device, local only) ============================= */
 const DATA_KEY = 'shiftRosterData_v1';
 const PREF_KEY = 'shiftRosterPrefs_v1';
+const BACKUP_KEY = 'shiftRosterLastBackup_v1';
+function getBackupStatus(){
+  let ts = null;
+  try { ts = localStorage.getItem(BACKUP_KEY); } catch(e) {}
+  if (!ts) return {ok:false, text:'⚠️ No backup taken yet. Your data lives only on this phone — export a JSON backup below to keep it safe.'};
+  const days = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
+  const dayLabel = days<=0 ? 'today' : days===1 ? '1 day ago' : `${days} days ago`;
+  if (days <= 14) return {ok:true, text:`✅ Last backup: ${dayLabel}. Your data lives only on this phone — keep backing up regularly.`};
+  return {ok:false, text:`⚠️ Last backup was ${dayLabel}. It's a good time to export a fresh JSON backup below.`};
+}
+function markBackupDone(){
+  try { localStorage.setItem(BACKUP_KEY, new Date().toISOString()); } catch(e) {}
+}
 function saveData(){
   try { localStorage.setItem(DATA_KEY, JSON.stringify({holidays, leaves, extra})); } catch(e) {}
 }
@@ -416,19 +441,21 @@ function savePrefs(){
   try { localStorage.setItem(PREF_KEY, JSON.stringify({
     group: state.group,
     department: state.department,
+    theme: state.theme,
     basicCoff: state.basicCoff,
     da: state.da,
     nightAllow: state.nightAllow
   })); } catch(e) {}
 }
 function loadPrefs(){
-  const defaults = {group:1, department:'OPN', basicCoff:0, da:0, nightAllow:0};
+  const defaults = {group:1, department:'OPN', theme:'light', basicCoff:0, da:0, nightAllow:0};
   try {
     const raw = localStorage.getItem(PREF_KEY);
     if (raw) {
       const p = JSON.parse(raw);
       if (p.group) defaults.group = p.group;
       if (p.department === 'OPN' || p.department === 'IMD') defaults.department = p.department;
+      if (p.theme === 'light' || p.theme === 'dark') defaults.theme = p.theme;
       if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
       if (p.da !== undefined) defaults.da = p.da;
       if (p.nightAllow !== undefined) defaults.nightAllow = p.nightAllow;
@@ -445,6 +472,7 @@ const state = {
   tab: 'today',
   group: prefs.group,
   department: prefs.department,
+  theme: prefs.theme,
   basicCoff: prefs.basicCoff,
   da: prefs.da,
   nightAllow: prefs.nightAllow,
@@ -471,6 +499,9 @@ function dayOptions(sel){ let o=''; for(let d=1;d<=31;d++) o+=`<option value="${
 function groupOptions(sel){ let o=''; for(let g=1;g<=4;g++) o+=`<option value="${g}" ${g==sel?'selected':''}>Group ${g}</option>`; return o; }
 function deptOptions(sel){
   return `<option value="OPN" ${sel==='OPN'?'selected':''}>OPN</option><option value="IMD" ${sel==='IMD'?'selected':''}>IMD</option>`;
+}
+function themeOptions(sel){
+  return `<option value="light" ${sel==='light'?'selected':''}>☀️ Light</option><option value="dark" ${sel==='dark'?'selected':''}>🌙 Dark</option>`;
 }
 
 /* ============================= RENDERERS ============================= */
@@ -543,15 +574,6 @@ function renderToday(){
   }
   return `
     <div class="today-layout">
-      <div class="today-main">
-        <div class="today-hero">
-          <div class="greet">${greeting}</div>
-          <div class="date">${dateStr}</div>
-          <div class="wk">${weekdayName(utc)}</div>
-        </div>
-        <div class="grp-grid">${cards}</div>
-        ${renderMotivate()}
-      </div>
       <div class="today-side">
         <div class="card">
           <h2>👤 Your Details</h2>
@@ -566,8 +588,18 @@ function renderToday(){
           </div>
           <div class="row">
             <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
+            <div class="field"><label>Theme</label><select id="tTheme">${themeOptions(state.theme)}</select></div>
           </div>
         </div>
+      </div>
+      <div class="today-main">
+        <div class="today-hero">
+          <div class="greet">${greeting}</div>
+          <div class="date">${dateStr}</div>
+          <div class="wk">${weekdayName(utc)}</div>
+        </div>
+        <div class="grp-grid">${cards}</div>
+        ${renderMotivate()}
       </div>
     </div>
   `;
@@ -847,8 +879,9 @@ function renderData(){
       <span><button id="undoDelete">Undo</button> <button id="undoDismiss" style="color:var(--ink-soft);">✕</button></span>
     </div>
   ` : '';
+  const backupStatus = getBackupStatus();
   return `
-    <div class="backup-reminder">⚠️ Your data lives only on this phone. Take a JSON backup regularly (Backup section below) — if this device is lost, reset, or the app's cache is cleared, unbacked-up data cannot be recovered.</div>
+    <div class="backup-reminder ${backupStatus.ok ? 'ok' : ''}">${backupStatus.text}</div>
     ${undoHtml}
     <div class="card">
       <div class="row">
@@ -912,13 +945,13 @@ function bindCommon(prefix, fields){
       if (type === 'float') v = parseFloat(v) || 0;
       else if (type) v = parseInt(v,10);
       state[key] = v;
-      if (['group','department','basicCoff','da','nightAllow'].includes(key)) savePrefs();
+      if (['group','department','theme','basicCoff','da','nightAllow'].includes(key)) savePrefs();
       render();
     });
   });
 }
 function bindTabInputs(){
-  bindCommon('t', [['Department','department'],['Group','group',true],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
+  bindCommon('t', [['Department','department'],['Group','group',true],['Theme','theme'],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
   bindCommon('c', [['Group','group',true],['Year','year',true],['Month','month',true]]);
   bindCommon('r', [['Year','year',true],['Month','month',true]]);
   bindCommon('e', [['Group','group',true],['Year','year',true],['Month','month',true],['Day','day',true]]);
@@ -1049,6 +1082,8 @@ function bindTabInputs(){
       a.href = URL.createObjectURL(blob);
       a.download = `shift-roster-data-${new Date().toISOString().slice(0,10)}.json`;
       a.click();
+      markBackupDone();
+      render();
     });
     document.getElementById('exportAllCsv').addEventListener('click', () => {
       const rows = [['Type','Date','Description','Shift']];
@@ -1084,6 +1119,7 @@ function bindTabInputs(){
 }
 
 function render(){
+  document.documentElement.setAttribute('data-theme', state.theme);
   document.getElementById('content').innerHTML = RENDERERS[state.tab]();
   document.getElementById('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab===state.tab));
   const badge = document.getElementById('deptBadge');
