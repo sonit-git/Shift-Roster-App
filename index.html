@@ -33,9 +33,9 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .shell{max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);
+  .shell{width:100%;max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);
     display:flex;flex-direction:column;}
-  header{background:var(--ink);color:#fff;padding:18px 18px 14px;}
+  header{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;padding:18px 18px 14px;}
   header .brand{display:flex;align-items:baseline;justify-content:space-between;}
   .dept-badge{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--accent-ink);
     background:var(--accent);padding:3px 9px;border-radius:20px;}
@@ -49,8 +49,8 @@
     white-space:nowrap;transition:background .15s,color .15s;}
   nav.tabs button.active{background:var(--accent);color:#fff;}
   main{flex:1;padding:16px 14px 40px;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:16px;margin-bottom:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
   .card h2{font-size:15px;margin:0 0 12px;font-weight:700;}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
   .field{flex:1;min-width:90px;display:flex;flex-direction:column;gap:4px;}
@@ -73,14 +73,22 @@
   .A{background:var(--A-bg);color:var(--A);} .B{background:var(--B-bg);color:var(--B);}
   .C{background:var(--C-bg);color:var(--C);} .D{background:var(--D-bg);color:var(--D);}
   .OFF{background:var(--OFF-bg);color:var(--OFF);}
-  .today-hero{background:var(--ink);color:#fff;border-radius:14px;padding:20px 18px;margin-bottom:14px;}
-  .today-hero .date{font-size:22px;font-weight:700;}
-  .today-hero .wk{font-size:13px;color:#94A3B8;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .today-layout{display:block;}
+  .today-hero{background:linear-gradient(135deg,#0F172A 0%,#164E63 100%);color:#fff;
+    border-radius:16px;padding:22px 20px;margin-bottom:14px;box-shadow:0 6px 18px rgba(15,23,42,.18);}
+  .today-hero .greet{font-size:11px;color:#7DD3FC;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:6px;}
+  .today-hero .date{font-size:24px;font-weight:800;}
+  .today-hero .wk{font-size:13px;color:#94A3B8;font-family:ui-monospace,"SF Mono",Consolas,monospace;margin-top:2px;}
   .grp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .grp-card{background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:14px;text-align:center;}
+  .grp-card{background:var(--card);border:1px solid var(--line);border-top:4px solid transparent;
+    border-radius:14px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+  .grp-card.gc-A{border-top-color:var(--A);} .grp-card.gc-B{border-top-color:var(--B);}
+  .grp-card.gc-C{border-top-color:var(--C);} .grp-card.gc-D{border-top-color:var(--D);}
+  .grp-card.gc-OFF{border-top-color:var(--OFF);}
   .grp-card .glabel{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;}
-  .grp-card .gshift{font-size:26px;font-weight:800;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .grp-card .gshift{font-size:26px;font-weight:800;font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    border-radius:8px;padding:4px 0;}
   .grp-card .gtext{font-size:11px;color:var(--ink-soft);margin-top:2px;}
   .cal-month{margin-bottom:18px;}
   .cal-month h3{font-size:13px;font-weight:700;margin:0;}
@@ -123,7 +131,8 @@
   .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:13px;
     padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);}
   tr.today-row td{background:#CFFAFE;font-weight:700;}
-  .motivate-card{background:linear-gradient(135deg,#0E7490,#0F172A);color:#fff;border:none;}
+  .motivate-card{background:linear-gradient(135deg,#0E7490,#0F172A);color:#fff;border:none;
+    box-shadow:0 6px 18px rgba(14,116,144,.25);}
   .motivate-card h2{color:#fff;}
   .motivate-sub{font-size:11px;color:#BAE6FD;margin:-6px 0 14px;}
   .stat-block{margin-bottom:16px;}
@@ -141,6 +150,29 @@
   .loss-box b{color:#FCA5A5;}
   .backup-reminder{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;
     border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:14px;}
+
+  /* ---------- Responsive: tablets & desktops adapt instead of staying phone-width ---------- */
+  @media (min-width:700px){
+    .shell{max-width:760px;}
+    header{padding:22px 28px 18px;}
+    nav.tabs{padding:12px 20px;}
+    main{padding:22px 26px 48px;}
+    .card{padding:20px;}
+    .grp-grid{grid-template-columns:repeat(4,1fr);}
+    .today-layout{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start;}
+    .today-layout .card,.today-layout .today-hero,.today-layout .motivate-card{margin-bottom:0;}
+    .today-main{display:flex;flex-direction:column;gap:14px;}
+  }
+  @media (min-width:1024px){
+    .shell{max-width:1040px;}
+    header{padding:26px 34px 20px;}
+    header h1{font-size:21px;}
+    nav.tabs{padding:14px 26px;}
+    main{padding:26px 34px 56px;}
+    .today-hero .date{font-size:28px;}
+    .cal-cell{font-size:12px;}
+    .cal-cell .d{font-size:13px;}
+  }
 </style>
 </head>
 <body>
@@ -451,7 +483,7 @@ function renderMotivate(){
 
   if (!basic && !nightAllow) {
     return `<div class="card">
-      <h2>Your C-OFF &amp; Night Potential</h2>
+      <h2>🎯 Your C-OFF &amp; Night Potential</h2>
       <div class="empty-note">Fill in your Basic Pay, DA% and Night Allowance below to see how much you could be earning this year.</div>
     </div>`;
   }
@@ -478,7 +510,7 @@ function renderMotivate(){
 
   return `
     <div class="card motivate-card">
-      <h2>Your C-OFF &amp; Night Potential — ${year}</h2>
+      <h2>🎯 Your C-OFF &amp; Night Potential — ${year}</h2>
       <div class="motivate-sub">Group ${group} · Cap: 50 C-OFFs/year · 9 nights/month</div>
       <div class="stat-block">
         <div class="stat-head"><span class="label">C-OFF earned</span><span class="val">₹${curCoffAmt.toFixed(0)} / ₹${maxCoffAmt.toFixed(0)}</span></div>
@@ -498,32 +530,44 @@ function renderMotivate(){
 function renderToday(){
   const utc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
   const dateStr = `${String(today.getDate()).padStart(2,'0')} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
+  const hour = today.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   let cards = '';
   for (let g=1; g<=4; g++){
     const s = getShift(g, utc);
     const cls = s==='*' ? 'OFF' : s;
     const text = s==='*' ? 'Off today' : `Shift ${s}`;
-    cards += `<div class="grp-card"><div class="glabel">Group ${g}</div>
-      <div class="gshift ${cls}" style="border-radius:8px;padding:4px 0;">${s==='*'?'Off':s}</div>
+    cards += `<div class="grp-card gc-${cls}"><div class="glabel">Group ${g}</div>
+      <div class="gshift ${cls}">${s==='*'?'Off':s}</div>
       <div class="gtext">${text}</div></div>`;
   }
   return `
-    <div class="today-hero"><div class="date">${dateStr}</div><div class="wk">${weekdayName(utc)}</div></div>
-    <div class="grp-grid">${cards}</div>
-    ${renderMotivate()}
-    <div class="card">
-      <h2>Your Details</h2>
-      <div class="hint">Saved on this device — used to calculate your C-OFF and Night allowance amounts.</div>
-      <div class="row">
-        <div class="field"><label>Department</label><select id="tDepartment">${deptOptions(state.department)}</select></div>
-        <div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>
+    <div class="today-layout">
+      <div class="today-main">
+        <div class="today-hero">
+          <div class="greet">${greeting}</div>
+          <div class="date">${dateStr}</div>
+          <div class="wk">${weekdayName(utc)}</div>
+        </div>
+        <div class="grp-grid">${cards}</div>
+        ${renderMotivate()}
       </div>
-      <div class="row">
-        <div class="field"><label>Basic Pay (C-Off calc)</label><input type="number" step="0.01" id="tBasicCoff" value="${state.basicCoff || ''}" placeholder="e.g. 30000"></div>
-        <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDA" value="${state.da || ''}" placeholder="e.g. 53"></div>
-      </div>
-      <div class="row">
-        <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
+      <div class="today-side">
+        <div class="card">
+          <h2>👤 Your Details</h2>
+          <div class="hint">Saved on this device — used to calculate your C-OFF and Night allowance amounts.</div>
+          <div class="row">
+            <div class="field"><label>Department</label><select id="tDepartment">${deptOptions(state.department)}</select></div>
+            <div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Basic Pay (C-Off calc)</label><input type="number" step="0.01" id="tBasicCoff" value="${state.basicCoff || ''}" placeholder="e.g. 30000"></div>
+            <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDA" value="${state.da || ''}" placeholder="e.g. 53"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
