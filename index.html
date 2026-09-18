@@ -89,16 +89,16 @@
     letter-spacing:.08em;margin-bottom:6px;}
   .today-hero .date{font-size:24px;font-weight:800;}
   .today-hero .wk{font-size:13px;color:#94A3B8;font-family:ui-monospace,"SF Mono",Consolas,monospace;margin-top:2px;}
-  .grp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .grp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .grp-card{background:var(--card);border:1px solid var(--line);border-top:4px solid transparent;
-    border-radius:14px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+    border-radius:12px;padding:8px;text-align:center;box-shadow:0 1px 3px rgba(15,23,42,.05);}
   .grp-card.gc-A{border-top-color:var(--A);} .grp-card.gc-B{border-top-color:var(--B);}
   .grp-card.gc-C{border-top-color:var(--C);} .grp-card.gc-D{border-top-color:var(--D);}
   .grp-card.gc-OFF{border-top-color:var(--OFF);}
-  .grp-card .glabel{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;}
-  .grp-card .gshift{font-size:26px;font-weight:800;font-family:ui-monospace,"SF Mono",Consolas,monospace;
-    border-radius:8px;padding:4px 0;}
-  .grp-card .gtext{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .grp-card .glabel{font-size:11px;color:var(--ink-soft);font-weight:600;margin-bottom:3px;}
+  .grp-card .gshift{font-size:19px;font-weight:800;font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    border-radius:7px;padding:2px 0;}
+  .grp-card .gtext{font-size:10px;color:var(--ink-soft);margin-top:1px;}
   .cal-month{margin-bottom:18px;}
   .cal-month h3{font-size:13px;font-weight:700;margin:0;}
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
@@ -221,6 +221,26 @@ function getShift(group, dateUTC) {
   const ds = (((shift - 1) % 28) + 28) % 28;
   return cycle[ds];
 }
+
+// OPN(GEN) department — fixed weekly schedule, not a rotating cycle.
+// Working days: every day except Sunday — this includes 2nd Saturday and holidays,
+// which is what makes those days C-OFF eligible via the normal getCoff() rules below
+// (same rule that already applies to the rotating OPN/IMD groups).
+function getShiftGen(shift, dateUTC) {
+  const dow = new Date(dateUTC).getUTCDay(); // 0=Sun..6=Sat
+  if (dow === 0) return '*';
+  return shift; // 'B' or 'C'
+}
+// Resolves "the current user's own shift for a given date" regardless of department —
+// OPN/IMD use their Group's rotating cycle, OPN(GEN) uses their chosen B/C shift.
+function personalShiftFn() {
+  if (state.department === 'OPN_GEN') {
+    const shift = state.genShift;
+    return (utc) => getShiftGen(shift, utc);
+  }
+  const group = state.group;
+  return (utc) => getShift(group, utc);
+}
 function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
 function isoKey(y, m, d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function isoKeyFromUTC(u) { const dt = new Date(u); return isoKey(dt.getUTCFullYear(), dt.getUTCMonth()+1, dt.getUTCDate()); }
@@ -244,7 +264,7 @@ let holidays = [{"date": "2026-01-26", "desc": "Republic Day"}, {"date": "2026-0
 let leaves   = [{"date": "2026-01-27", "desc": "CL"}, {"date": "2026-01-31", "desc": "CL"}, {"date": "2026-02-01", "desc": "CL"}, {"date": "2026-02-20", "desc": "CL"}, {"date": "2026-04-06", "desc": "CL"}, {"date": "2026-04-07", "desc": "CL"}, {"date": "2026-04-25", "desc": "EL"}, {"date": "2027-04-26", "desc": "EL"}, {"date": "2026-04-27", "desc": "EL"}, {"date": "2026-04-28", "desc": "EL"}, {"date": "2026-04-29", "desc": "EL"}, {"date": "2026-04-30", "desc": "EL"}, {"date": "2026-05-18", "desc": "CL"}, {"date": "2026-05-19", "desc": "CL"}, {"date": "2026-05-26", "desc": "CL"}, {"date": "2026-06-20", "desc": "CL"}, {"date": "2026-06-21", "desc": "CL"}, {"date": "2026-06-23", "desc": "EL"}, {"date": "2026-06-24", "desc": "EL"}, {"date": "2026-06-25", "desc": "EL"}, {"date": "2026-06-26", "desc": "EL"}, {"date": "2026-06-27", "desc": "EL"}, {"date": "2026-06-28", "desc": "EL"}, {"date": "2026-06-29", "desc": "EL"}, {"date": "2026-07-12", "desc": "CL"}, {"date": "2026-07-24", "desc": "CL"}, {"date": "2026-07-27", "desc": "EL"}, {"date": "2026-07-28", "desc": "EL"}, {"date": "2026-07-29", "desc": "EL"}, {"date": "2026-08-09", "desc": "CL"}, {"date": "2026-08-24", "desc": "CL"}, {"date": "2026-08-28", "desc": "CL"}, {"date": "2026-08-31", "desc": "EL"}];
 let extra    = [{"date": "2026-01-05", "desc": "Extra Duty in Group 3", "shift": "A"}];
 
-function getCoff(group, year) {
+function getCoff(shiftFn, year) {
   const leaveDates = new Set(leaves.map(l => l.date));
   const extraMap = new Map(extra.map(e => [e.date, e]));
   const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
@@ -260,7 +280,7 @@ function getCoff(group, year) {
         if (["A","B","C","D"].includes(e.shift)) list.push({date:utc, desc:e.desc, shift:e.shift});
         continue;
       }
-      const shift = getShift(group, utc);
+      const shift = shiftFn(utc);
       if (holidayMap.has(key)) {
         if (["A","B","C","D"].includes(shift)) list.push({date:utc, desc:holidayMap.get(key), shift});
       } else {
@@ -273,7 +293,7 @@ function getCoff(group, year) {
   }
   return list;
 }
-function getNight(group, year) {
+function getNight(shiftFn, year) {
   const leaveDates = new Set(leaves.map(l => l.date));
   const extraMap = new Map(extra.map(e => [e.date, e]));
   const rows = [];
@@ -285,7 +305,7 @@ function getNight(group, year) {
       if (leaveDates.has(key)) continue;
       // Extra duty on this date overrides the rostered shift (same as C-OFF logic),
       // so a night (A) extra duty must count here even if the roster shift wasn't A.
-      const effectiveShift = extraMap.has(key) ? extraMap.get(key).shift : getShift(group, Date.UTC(year, month-1, d));
+      const effectiveShift = extraMap.has(key) ? extraMap.get(key).shift : shiftFn(Date.UTC(year, month-1, d));
       if (effectiveShift === "A") list.push(d);
     }
     rows.push({month, list});
@@ -294,14 +314,14 @@ function getNight(group, year) {
 }
 // How many C-OFFs were missed this year because a leave was taken on a date that
 // would otherwise have qualified (holiday or 2nd Saturday landing on a working shift).
-function getLostCoff(group, year) {
+function getLostCoff(shiftFn, year) {
   const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
   let count = 0;
   leaves.forEach(l => {
     if (!l.date.startsWith(String(year) + '-')) return;
     const [y,m,d] = l.date.split('-').map(Number);
     const utc = Date.UTC(y, m-1, d);
-    const shift = getShift(group, utc);
+    const shift = shiftFn(utc);
     if (!["A","B","C","D"].includes(shift)) return;
     const dow = new Date(utc).getUTCDay();
     if (holidayMap.has(l.date) || (dow===6 && d>=8 && d<=14)) count++;
@@ -310,28 +330,38 @@ function getLostCoff(group, year) {
 }
 // How many night-shift (A) allowance days were missed this year because a leave
 // was taken on a date that was rostered as a night shift.
-function getLostNights(group, year) {
+function getLostNights(shiftFn, year) {
   let count = 0;
   leaves.forEach(l => {
     if (!l.date.startsWith(String(year) + '-')) return;
     const [y,m,d] = l.date.split('-').map(Number);
-    if (getShift(group, Date.UTC(y, m-1, d)) === "A") count++;
+    if (shiftFn(Date.UTC(y, m-1, d)) === "A") count++;
   });
   return count;
 }
-function shiftExchange(utcDate, group1) {
-  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
-  const mine = shifts[group1-1];
+function buildExchangeResult(mine, shifts, excludeGroup) {
   const changeNeeded = !(mine === "*" || mine === "D");
   const options = [];
   if (changeNeeded) {
     for (let g=1; g<=4; g++) {
-      if (g === group1) continue;
+      if (g === excludeGroup) continue;
       const s = shifts[g-1];
       options.push({group:g, shift:s, canExchange: (s === "*" || s === "D")});
     }
   }
   return {mine, changeNeeded, options};
+}
+function shiftExchange(utcDate, group1) {
+  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
+  return buildExchangeResult(shifts[group1-1], shifts, group1);
+}
+// OPN(GEN) staff don't belong to one of the 4 rotating groups, but they can still
+// swap duty with any group whose shift that day is Off or D — same "can exchange"
+// rule as between two rotating groups, just compared against their own fixed B/C shift.
+function shiftExchangeGen(utcDate, genShift) {
+  const mine = getShiftGen(genShift, utcDate);
+  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
+  return buildExchangeResult(mine, shifts, null);
 }
 
 // Shared add-with-conflict-check helpers, used by both the Data tab and the
@@ -441,6 +471,7 @@ function savePrefs(){
   try { localStorage.setItem(PREF_KEY, JSON.stringify({
     group: state.group,
     department: state.department,
+    genShift: state.genShift,
     theme: state.theme,
     basicCoff: state.basicCoff,
     da: state.da,
@@ -448,13 +479,14 @@ function savePrefs(){
   })); } catch(e) {}
 }
 function loadPrefs(){
-  const defaults = {group:1, department:'OPN', theme:'light', basicCoff:0, da:0, nightAllow:0};
+  const defaults = {group:1, department:'OPN', genShift:'B', theme:'light', basicCoff:0, da:0, nightAllow:0};
   try {
     const raw = localStorage.getItem(PREF_KEY);
     if (raw) {
       const p = JSON.parse(raw);
       if (p.group) defaults.group = p.group;
-      if (p.department === 'OPN' || p.department === 'IMD') defaults.department = p.department;
+      if (p.department === 'OPN' || p.department === 'IMD' || p.department === 'OPN_GEN') defaults.department = p.department;
+      if (p.genShift === 'B' || p.genShift === 'C') defaults.genShift = p.genShift;
       if (p.theme === 'light' || p.theme === 'dark') defaults.theme = p.theme;
       if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
       if (p.da !== undefined) defaults.da = p.da;
@@ -472,6 +504,7 @@ const state = {
   tab: 'today',
   group: prefs.group,
   department: prefs.department,
+  genShift: prefs.genShift,
   theme: prefs.theme,
   basicCoff: prefs.basicCoff,
   da: prefs.da,
@@ -498,7 +531,10 @@ function monthOptions(sel){ let o=''; MONTH_NAMES.forEach((m,i)=>{ const v=i+1; 
 function dayOptions(sel){ let o=''; for(let d=1;d<=31;d++) o+=`<option value="${d}" ${d==sel?'selected':''}>${d}</option>`; return o; }
 function groupOptions(sel){ let o=''; for(let g=1;g<=4;g++) o+=`<option value="${g}" ${g==sel?'selected':''}>Group ${g}</option>`; return o; }
 function deptOptions(sel){
-  return `<option value="OPN" ${sel==='OPN'?'selected':''}>OPN</option><option value="IMD" ${sel==='IMD'?'selected':''}>IMD</option>`;
+  return `<option value="OPN" ${sel==='OPN'?'selected':''}>OPN</option><option value="IMD" ${sel==='IMD'?'selected':''}>IMD</option><option value="OPN_GEN" ${sel==='OPN_GEN'?'selected':''}>OPN(GEN)</option>`;
+}
+function genShiftOptions(sel){
+  return `<option value="B" ${sel==='B'?'selected':''}>B Shift</option><option value="C" ${sel==='C'?'selected':''}>C Shift</option>`;
 }
 function themeOptions(sel){
   return `<option value="light" ${sel==='light'?'selected':''}>☀️ Light</option><option value="dark" ${sel==='dark'?'selected':''}>🌙 Dark</option>`;
@@ -506,7 +542,7 @@ function themeOptions(sel){
 
 /* ============================= RENDERERS ============================= */
 function renderMotivate(){
-  const group = state.group;
+  const shiftFn = personalShiftFn();
   const year = today.getFullYear();
   const basic = parseFloat(state.basicCoff)||0;
   const da = parseFloat(state.da)||0;
@@ -520,17 +556,17 @@ function renderMotivate(){
   }
 
   const perDayCoff = (basic + (basic * da / 100)) / 30;
-  const coffCount = Math.min(getCoff(group, year).length, 50);
+  const coffCount = Math.min(getCoff(shiftFn, year).length, 50);
   const maxCoffAmt = perDayCoff * 50;
   const curCoffAmt = perDayCoff * coffCount;
 
-  const nightRows = getNight(group, year);
+  const nightRows = getNight(shiftFn, year);
   const curNightCount = nightRows.reduce((s,r) => s + Math.min(r.list.length, 9), 0);
   const maxNightAmt = nightAllow * 108;
   const curNightAmt = nightAllow * curNightCount;
 
-  const lostCoff = getLostCoff(group, year);
-  const lostNight = getLostNights(group, year);
+  const lostCoff = getLostCoff(shiftFn, year);
+  const lostNight = getLostNights(shiftFn, year);
   const lostAmt = (perDayCoff * lostCoff) + (nightAllow * lostNight);
 
   const coffPct = Math.min(100, Math.round((coffCount/50)*100));
@@ -539,10 +575,12 @@ function renderMotivate(){
   const lossHtml = (lostCoff>0 || lostNight>0) ? `
     <div class="loss-box">⚠️ Leaves have cost you${lostCoff>0?` <b>${lostCoff} C-OFF${lostCoff!==1?'s':''}</b>`:''}${(lostCoff>0 && lostNight>0)?' and':''}${lostNight>0?` <b>${lostNight} night${lostNight!==1?'s':''}</b>`:''} so far this year — about <b>₹${lostAmt.toFixed(0)}</b> less than you could have earned.</div>` : '';
 
+  const subLabel = state.department === 'OPN_GEN' ? `Shift ${state.genShift}` : `Group ${state.group}`;
+
   return `
     <div class="card motivate-card">
       <h2>🎯 Your C-OFF &amp; Night Potential — ${year}</h2>
-      <div class="motivate-sub">Group ${group} · Cap: 50 C-OFFs/year · 9 nights/month</div>
+      <div class="motivate-sub">${subLabel} · Cap: 50 C-OFFs/year · 9 nights/month</div>
       <div class="stat-block">
         <div class="stat-head"><span class="label">C-OFF earned</span><span class="val">₹${curCoffAmt.toFixed(0)} / ₹${maxCoffAmt.toFixed(0)}</span></div>
         <div class="pbar-track"><div class="pbar-fill coff" style="width:${coffPct}%"></div></div>
@@ -563,6 +601,7 @@ function renderToday(){
   const dateStr = `${String(today.getDate()).padStart(2,'0')} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const isGen = state.department === 'OPN_GEN';
   let cards = '';
   for (let g=1; g<=4; g++){
     const s = getShift(g, utc);
@@ -572,6 +611,17 @@ function renderToday(){
       <div class="gshift ${cls}">${s==='*'?'Off':s}</div>
       <div class="gtext">${text}</div></div>`;
   }
+  if (isGen) {
+    const s = getShiftGen(state.genShift, utc);
+    const cls = s==='*' ? 'OFF' : s;
+    const text = s==='*' ? 'Off today' : `Shift ${s}`;
+    cards += `<div class="grp-card gc-${cls}"><div class="glabel">Your Shift (GEN)</div>
+      <div class="gshift ${cls}">${s==='*'?'Off':s}</div>
+      <div class="gtext">${text}</div></div>`;
+  }
+  const groupFieldHtml = isGen
+    ? `<div class="field"><label>Your Shift</label><select id="tGenShift">${genShiftOptions(state.genShift)}</select></div>`
+    : `<div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>`;
   return `
     <div class="today-layout">
       <div class="today-side">
@@ -580,7 +630,7 @@ function renderToday(){
           <div class="hint">Saved on this device — used to calculate your C-OFF and Night allowance amounts.</div>
           <div class="row">
             <div class="field"><label>Department</label><select id="tDepartment">${deptOptions(state.department)}</select></div>
-            <div class="field"><label>Your Group</label><select id="tGroup">${groupOptions(state.group)}</select></div>
+            ${groupFieldHtml}
           </div>
           <div class="row">
             <div class="field"><label>Basic Pay (C-Off calc)</label><input type="number" step="0.01" id="tBasicCoff" value="${state.basicCoff || ''}" placeholder="e.g. 30000"></div>
@@ -590,6 +640,7 @@ function renderToday(){
             <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
             <div class="field"><label>Theme</label><select id="tTheme">${themeOptions(state.theme)}</select></div>
           </div>
+          ${isGen ? `<div class="hint" style="margin:10px 0 0;">OPN(GEN): works every day except Sunday — this includes 2nd Saturday and holidays. Any 2nd Saturday or holiday you work earns a C-OFF automatically. Night allowance won't apply since B/C shifts never count as night.</div>` : ''}
         </div>
       </div>
       <div class="today-main">
@@ -607,12 +658,14 @@ function renderToday(){
 
 function renderCalendar(){
   const year = state.year, month = state.month;
+  const isGen = state.department === 'OPN_GEN';
+  const shiftFn = personalShiftFn();
   const holidayMap = new Map(holidays.map(h => [h.date, h.desc]));
   const leaveMap = new Map(leaves.map(l => [l.date, l.desc]));
   const extraMap = new Map(extra.map(e => [e.date, e]));
   const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
   const weeks = monthWeeks(year, month).map(week =>
-    week.map(d => d===0 ? null : {day:d, shift:getShift(state.group, Date.UTC(year, month-1, d))}));
+    week.map(d => d===0 ? null : {day:d, shift:shiftFn(Date.UTC(year, month-1, d))}));
 
   let holCount = 0, satCount = 0, leaveCount = 0, lostCount = 0;
 
@@ -717,7 +770,9 @@ function renderCalendar(){
     <div class="card">
       <h2>Calendar</h2>
       <div class="row">
-        <div class="field"><label>Group</label><select id="cGroup">${groupOptions(state.group)}</select></div>
+        ${isGen
+          ? `<div class="field"><label>Shift</label><select id="cGenShift">${genShiftOptions(state.genShift)}</select></div>`
+          : `<div class="field"><label>Group</label><select id="cGroup">${groupOptions(state.group)}</select></div>`}
         <div class="field"><label>Year</label><select id="cYear">${yearOptions(state.year)}</select></div>
         <div class="field"><label>Month</label><select id="cMonth">${monthOptions(state.month)}</select></div>
       </div>
@@ -766,11 +821,12 @@ function renderRoster(){
 }
 
 function renderExchange(){
+  const isGen = state.department === 'OPN_GEN';
   const utc = Date.UTC(state.year, state.month-1, state.day);
-  const r = shiftExchange(utc, state.group);
+  const r = isGen ? shiftExchangeGen(utc, state.genShift) : shiftExchange(utc, state.group);
   let body;
   if (!r.changeNeeded) {
-    body = `<p class="empty-note">Group ${state.group} has shift ${r.mine} — change not needed.</p>`;
+    body = `<p class="empty-note">${isGen ? `Your shift ${r.mine}` : `Group ${state.group} has shift ${r.mine}`} — change not needed.</p>`;
   } else {
     const lines = r.options.map(o => `<div class="exchange-line">
       <span>Group ${o.group} — ${badge(o.shift)}</span>
@@ -782,7 +838,9 @@ function renderExchange(){
     <div class="card">
       <h2>Shift Exchange</h2>
       <div class="row">
-        <div class="field"><label>Group</label><select id="eGroup">${groupOptions(state.group)}</select></div>
+        ${isGen
+          ? `<div class="field"><label>Shift</label><select id="eGenShift">${genShiftOptions(state.genShift)}</select></div>`
+          : `<div class="field"><label>Group</label><select id="eGroup">${groupOptions(state.group)}</select></div>`}
         <div class="field"><label>Year</label><select id="eYear">${yearOptions(state.year)}</select></div>
       </div>
       <div class="row">
@@ -795,6 +853,11 @@ function renderExchange(){
 }
 
 function renderCount(){
+  if (state.department === 'OPN_GEN') {
+    return `<div class="card"><h2>Count Shifts</h2>
+      <div class="empty-note">Not applicable for OPN(GEN) — there are no rotating groups to count shifts for.</div>
+    </div>`;
+  }
   const result = shiftCount(state.year, state.month);
   const body = result.map(r => `<tr><td>G${r.group}</td><td>${r.counts.A}</td><td>${r.counts.B}</td>
     <td>${r.counts.C}</td><td>${r.counts.D}</td><td>${r.counts['*']}</td></tr>`).join('');
@@ -814,7 +877,9 @@ function renderCount(){
 }
 
 function renderCoff(){
-  const list = getCoff(state.group, state.year);
+  const isGen = state.department === 'OPN_GEN';
+  const shiftFn = personalShiftFn();
+  const list = getCoff(shiftFn, state.year);
   const body = list.map(c => `<tr><td>${fmtDMY(c.date)}</td><td class="desc">${c.desc}</td><td>${badge(c.shift)}</td></tr>`).join('');
   const basic = parseFloat(state.basicCoff)||0;
   const da = parseFloat(state.da)||0;
@@ -824,7 +889,9 @@ function renderCoff(){
     <div class="card">
       <h2>C-OFF List</h2>
       <div class="row">
-        <div class="field"><label>Group</label><select id="coGroup">${groupOptions(state.group)}</select></div>
+        ${isGen
+          ? `<div class="field"><label>Shift</label><select id="coGenShift">${genShiftOptions(state.genShift)}</select></div>`
+          : `<div class="field"><label>Group</label><select id="coGroup">${groupOptions(state.group)}</select></div>`}
         <div class="field"><label>Year</label><select id="coYear">${yearOptions(state.year)}</select></div>
       </div>
     </div>
@@ -838,7 +905,9 @@ function renderCoff(){
 }
 
 function renderNight(){
-  const rows = getNight(state.group, state.year);
+  const isGen = state.department === 'OPN_GEN';
+  const shiftFn = personalShiftFn();
+  const rows = getNight(shiftFn, state.year);
   const body = rows.map(r => `<tr><td>${MONTH_NAMES[r.month-1].slice(0,3)}-${String(state.year).slice(2)}</td>
     <td class="desc">${r.list.join(', ') || '—'}</td><td>${r.list.length}</td></tr>`).join('');
   const totalNights = rows.reduce((s,r)=>s+r.list.length,0);
@@ -848,7 +917,9 @@ function renderNight(){
     <div class="card">
       <h2>Night Shift List</h2>
       <div class="row">
-        <div class="field"><label>Group</label><select id="nGroup">${groupOptions(state.group)}</select></div>
+        ${isGen
+          ? `<div class="field"><label>Shift</label><select id="nGenShift">${genShiftOptions(state.genShift)}</select></div>`
+          : `<div class="field"><label>Group</label><select id="nGroup">${groupOptions(state.group)}</select></div>`}
         <div class="field"><label>Year</label><select id="nYear">${yearOptions(state.year)}</select></div>
       </div>
     </div>
@@ -945,25 +1016,25 @@ function bindCommon(prefix, fields){
       if (type === 'float') v = parseFloat(v) || 0;
       else if (type) v = parseInt(v,10);
       state[key] = v;
-      if (['group','department','theme','basicCoff','da','nightAllow'].includes(key)) savePrefs();
+      if (['group','department','genShift','theme','basicCoff','da','nightAllow'].includes(key)) savePrefs();
       render();
     });
   });
 }
 function bindTabInputs(){
-  bindCommon('t', [['Department','department'],['Group','group',true],['Theme','theme'],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
-  bindCommon('c', [['Group','group',true],['Year','year',true],['Month','month',true]]);
+  bindCommon('t', [['Department','department'],['Group','group',true],['GenShift','genShift'],['Theme','theme'],['BasicCoff','basicCoff','float'],['DA','da','float'],['NightAllow','nightAllow','float']]);
+  bindCommon('c', [['Group','group',true],['GenShift','genShift'],['Year','year',true],['Month','month',true]]);
   bindCommon('r', [['Year','year',true],['Month','month',true]]);
-  bindCommon('e', [['Group','group',true],['Year','year',true],['Month','month',true],['Day','day',true]]);
+  bindCommon('e', [['Group','group',true],['GenShift','genShift'],['Year','year',true],['Month','month',true],['Day','day',true]]);
   bindCommon('ct',[['Year','year',true],['Month','month',true]]);
-  bindCommon('co',[['Group','group',true],['Year','year',true]]);
-  bindCommon('n', [['Group','group',true],['Year','year',true]]);
+  bindCommon('co',[['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
+  bindCommon('n', [['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
   bindCommon('dd',[['Year','dataYear',true]]);
 
   if (state.tab === 'coff') {
     const btn = document.getElementById('coExportCsv');
     if (btn) btn.addEventListener('click', () => {
-      const list = getCoff(state.group, state.year);
+      const list = getCoff(personalShiftFn(), state.year);
       const basic = parseFloat(state.basicCoff)||0;
       const da = parseFloat(state.da)||0;
       const perDay = (basic + (basic * da / 100)) / 30;
@@ -972,14 +1043,15 @@ function bindTabInputs(){
       rows.push([]);
       rows.push(['Total C-OFFs', list.length]);
       rows.push(['Total C-OFF Amount (₹)', (perDay*list.length).toFixed(2)]);
-      downloadCSV(`c-off-group${state.group}-${state.year}.csv`, rowsToCSV(rows));
+      const idLabel = state.department === 'OPN_GEN' ? `gen-${state.genShift}` : `group${state.group}`;
+      downloadCSV(`c-off-${idLabel}-${state.year}.csv`, rowsToCSV(rows));
     });
   }
 
   if (state.tab === 'night') {
     const btn = document.getElementById('nExportCsv');
     if (btn) btn.addEventListener('click', () => {
-      const nrows = getNight(state.group, state.year);
+      const nrows = getNight(personalShiftFn(), state.year);
       const nightAllow = parseFloat(state.nightAllow)||0;
       const totalNights = nrows.reduce((s,r)=>s+r.list.length,0);
       const rows = [['Month','Dates','Count']];
@@ -987,7 +1059,8 @@ function bindTabInputs(){
       rows.push([]);
       rows.push(['Total Night Shifts', totalNights]);
       rows.push(['Total Night Allowance (₹)', (nightAllow*totalNights).toFixed(2)]);
-      downloadCSV(`night-shift-group${state.group}-${state.year}.csv`, rowsToCSV(rows));
+      const idLabel = state.department === 'OPN_GEN' ? `gen-${state.genShift}` : `group${state.group}`;
+      downloadCSV(`night-shift-${idLabel}-${state.year}.csv`, rowsToCSV(rows));
     });
   }
 
@@ -1123,7 +1196,7 @@ function render(){
   document.getElementById('content').innerHTML = RENDERERS[state.tab]();
   document.getElementById('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab===state.tab));
   const badge = document.getElementById('deptBadge');
-  if (badge) badge.textContent = state.department;
+  if (badge) badge.textContent = state.department === 'OPN_GEN' ? 'OPN(GEN)' : state.department;
   bindTabInputs();
 }
 
