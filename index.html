@@ -23,7 +23,7 @@
   :root{
     --ink:#0F172A; --ink-soft:#475569; --paper:#F1F5F9; --card:#FFFFFF;
     --line:#E2E8F0; --accent:#0E7490; --accent-ink:#FFFFFF; --nav-bg:#0F172A;
-    --input-bg:#FFFFFF;
+    --input-bg:#FFFFFF; --fs-mult:1;
     --A:#16A34A; --B:#2563EB; --C:#EA580C; --D:#CA8A04; --OFF:#64748B;
     --A-bg:#DCFCE7; --B-bg:#DBEAFE; --C-bg:#FFEDD5; --D-bg:#FEF3C7; --OFF-bg:#E2E8F0;
   }
@@ -35,6 +35,9 @@
     --A-bg:rgba(74,222,128,.15); --B-bg:rgba(96,165,250,.16); --C-bg:rgba(251,146,60,.16);
     --D-bg:rgba(250,204,21,.16); --OFF-bg:rgba(148,163,184,.16);
   }
+  /* Font Size preference — scales every font-size in the app via calc(...px * var(--fs-mult)) */
+  [data-fontsize="large"]{ --fs-mult:1.15; }
+  [data-fontsize="xlarge"]{ --fs-mult:1.3; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -46,46 +49,46 @@
     display:flex;flex-direction:column;}
   header{background:linear-gradient(135deg,#0F172A,#1E293B);color:#fff;padding:18px 18px 14px;}
   header .brand{display:flex;align-items:baseline;justify-content:space-between;}
-  .dept-badge{font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--accent-ink);
+  .dept-badge{font-size:calc(11.5px * var(--fs-mult));font-weight:700;letter-spacing:.04em;color:var(--accent-ink);
     background:var(--accent);padding:3px 9px;border-radius:20px;}
-  header h1{font-size:21px;margin:0;font-weight:700;letter-spacing:.2px;}
-  header .sub{font-size:18px;font-weight:800;color:#FBBF24;margin-top:4px;letter-spacing:.02em;
+  header h1{font-size:calc(21px * var(--fs-mult));margin:0;font-weight:700;letter-spacing:.2px;}
+  header .sub{font-size:calc(18px * var(--fs-mult));font-weight:800;color:#FBBF24;margin-top:4px;letter-spacing:.02em;
     font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 10px;background:var(--nav-bg);
     scrollbar-width:none;}
   nav.tabs::-webkit-scrollbar{display:none;}
   nav.tabs button{flex:0 0 auto;background:#1E293B;color:#CBD5E1;border:none;
-    padding:9px 14px;border-radius:20px;font-size:14.5px;font-weight:600;cursor:pointer;
+    padding:9px 14px;border-radius:20px;font-size:calc(14.5px * var(--fs-mult));font-weight:600;cursor:pointer;
     white-space:nowrap;transition:background .15s,color .15s;}
   nav.tabs button.active{background:var(--accent);color:#fff;}
   main{flex:1;padding:16px 14px 40px;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
     padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
-  .card h2{font-size:17px;margin:0 0 12px;font-weight:700;}
+  .card h2{font-size:calc(17px * var(--fs-mult));margin:0 0 12px;font-weight:700;}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
   .field{flex:1;min-width:90px;display:flex;flex-direction:column;gap:4px;}
-  .section-label{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  .section-label{font-size:calc(12.5px * var(--fs-mult));font-weight:700;text-transform:uppercase;letter-spacing:.04em;
     color:var(--ink-soft);margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--line);}
   .section-label:first-of-type{margin-top:2px;padding-top:0;border-top:none;}
   .da-slot-row{align-items:flex-end;}
   .da-slot-tag{width:24px;height:24px;border-radius:50%;background:var(--line);color:var(--ink-soft);
-    font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    font-size:calc(12.5px * var(--fs-mult));font-weight:700;display:flex;align-items:center;justify-content:center;
     flex:0 0 auto;margin-bottom:6px;}
-  .field label{font-size:12.5px;color:var(--ink-soft);font-weight:600;text-transform:none;}
+  .field label{font-size:calc(12.5px * var(--fs-mult));color:var(--ink-soft);font-weight:600;text-transform:none;}
   select,input[type=date],input[type=text],input[type=number]{
-    font-size:16.5px;padding:10px 11px;border-radius:8px;border:1px solid var(--line);
+    font-size:calc(16.5px * var(--fs-mult));padding:10px 11px;border-radius:8px;border:1px solid var(--line);
     background:var(--input-bg);color:var(--ink);width:100%;font-family:inherit;transition:background-color .2s,color .2s;}
   button.primary{background:var(--accent);color:#fff;border:none;border-radius:9px;
-    padding:12px 16px;font-size:15.5px;font-weight:700;cursor:pointer;width:100%;}
+    padding:12px 16px;font-size:calc(15.5px * var(--fs-mult));font-weight:700;cursor:pointer;width:100%;}
   button.primary:active{opacity:.85;}
   button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
-    border-radius:8px;padding:9px 12px;font-size:14.5px;cursor:pointer;font-weight:600;}
-  table{width:100%;border-collapse:collapse;font-size:14.5px;}
-  th{text-align:left;font-size:12.5px;color:var(--ink-soft);padding:7px 6px;border-bottom:1px solid var(--line);}
+    border-radius:8px;padding:9px 12px;font-size:calc(14.5px * var(--fs-mult));cursor:pointer;font-weight:600;}
+  table{width:100%;border-collapse:collapse;font-size:calc(14.5px * var(--fs-mult));}
+  th{text-align:left;font-size:calc(12.5px * var(--fs-mult));color:var(--ink-soft);padding:7px 6px;border-bottom:1px solid var(--line);}
   td{padding:8px 6px;border-bottom:1px solid var(--line);font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   td.desc{font-family:inherit;}
   .badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;
-    height:24px;padding:0 6px;border-radius:6px;font-weight:700;font-size:13.5px;
+    height:24px;padding:0 6px;border-radius:6px;font-weight:700;font-size:calc(13.5px * var(--fs-mult));
     font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   .A{background:var(--A-bg);color:var(--A);} .B{background:var(--B-bg);color:var(--B);}
   .C{background:var(--C-bg);color:var(--C);} .D{background:var(--D-bg);color:var(--D);}
@@ -95,18 +98,18 @@
   .grp-chip{flex:1;min-width:64px;display:flex;align-items:center;justify-content:center;gap:6px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 6px;
     box-shadow:0 1px 3px rgba(15,23,42,.05);}
-  .grp-chip .gc-name{font-size:13.5px;font-weight:700;color:var(--ink-soft);}
+  .grp-chip .gc-name{font-size:calc(13.5px * var(--fs-mult));font-weight:700;color:var(--ink-soft);}
   .cal-month{margin-bottom:18px;}
-  .cal-month h3{font-size:15px;font-weight:700;margin:0;}
+  .cal-month h3{font-size:calc(15px * var(--fs-mult));font-weight:700;margin:0;}
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-  .cal-nav button{font-size:12.5px;padding:7px 11px;}
+  .cal-nav button{font-size:calc(12.5px * var(--fs-mult));padding:7px 11px;}
   .cal-nav button:disabled{opacity:.35;cursor:default;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-  .cal-head{font-size:10.5px;color:var(--ink-soft);text-align:center;font-weight:700;padding:2px 0;}
+  .cal-head{font-size:calc(10.5px * var(--fs-mult));color:var(--ink-soft);text-align:center;font-weight:700;padding:2px 0;}
   .cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    border-radius:6px;font-size:11.5px;font-family:ui-monospace,"SF Mono",Consolas,monospace;position:relative;
+    border-radius:6px;font-size:calc(11.5px * var(--fs-mult));font-family:ui-monospace,"SF Mono",Consolas,monospace;position:relative;
     cursor:pointer;box-sizing:border-box;border:2px solid transparent;}
-  .cal-cell .d{font-weight:700;font-size:13px;}
+  .cal-cell .d{font-weight:700;font-size:calc(13px * var(--fs-mult));}
   .cal-empty{background:transparent;cursor:default;}
   .cal-cell.cal-today{border-color:var(--ink);}
   .cal-cell.cal-selected{box-shadow:0 0 0 2px var(--accent) inset;}
@@ -117,46 +120,46 @@
   .cal-mark.secondsat{background:#F59E0B;}
   .cal-mark.leave{background:#2563EB;}
   .cal-mark.lost{background:transparent;border:2px solid #DC2626;width:8px;height:8px;}
-  .cal-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12.5px;color:var(--ink-soft);}
+  .cal-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:calc(12.5px * var(--fs-mult));color:var(--ink-soft);}
   .cal-legend span{display:inline-flex;align-items:center;gap:5px;}
   .cal-legend .cal-mark{position:static;}
   .undo-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;
     background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;
-    margin-bottom:12px;font-size:14px;color:#92400E;}
-  .undo-banner button{background:none;border:none;color:#0E7490;font-weight:700;font-size:14px;cursor:pointer;}
-  .exchange-line{padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px;display:flex;
+    margin-bottom:12px;font-size:calc(14px * var(--fs-mult));color:#92400E;}
+  .undo-banner button{background:none;border:none;color:#0E7490;font-weight:700;font-size:calc(14px * var(--fs-mult));cursor:pointer;}
+  .exchange-line{padding:9px 0;border-bottom:1px solid var(--line);font-size:calc(14.5px * var(--fs-mult));display:flex;
     justify-content:space-between;align-items:center;}
-  .pill{font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:20px;}
+  .pill{font-size:calc(12.5px * var(--fs-mult));font-weight:700;padding:4px 10px;border-radius:20px;}
   .pill.yes{background:#DCFCE7;color:#166534;} .pill.no{background:#FEE2E2;color:#991B1B;}
-  .empty-note{font-size:13.5px;color:var(--ink-soft);text-align:center;padding:14px 0;}
+  .empty-note{font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);text-align:center;padding:14px 0;}
   .data-item{display:flex;justify-content:space-between;align-items:center;
-    padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px;gap:8px;}
-  .data-item .meta{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:13.5px;color:var(--ink-soft);}
-  .data-item .del{background:none;border:none;color:#DC2626;font-size:18px;cursor:pointer;padding:2px 6px;}
-  .hint{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
-  .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:14.5px;
+    padding:9px 0;border-bottom:1px solid var(--line);font-size:calc(14.5px * var(--fs-mult));gap:8px;}
+  .data-item .meta{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);}
+  .data-item .del{background:none;border:none;color:#DC2626;font-size:calc(18px * var(--fs-mult));cursor:pointer;padding:2px 6px;}
+  .hint{font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
+  .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:calc(14.5px * var(--fs-mult));
     padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);}
   tr.today-row td{background:#CFFAFE;font-weight:700;}
   [data-theme="dark"] tr.today-row td{background:#164E63;color:#fff;}
   .motivate-card{background:linear-gradient(135deg,#0E7490,#0F172A);color:#fff;border:none;
     box-shadow:0 6px 18px rgba(14,116,144,.25);}
   .motivate-card h2{color:#fff;}
-  .motivate-sub{font-size:12.5px;color:#BAE6FD;margin:-6px 0 14px;}
+  .motivate-sub{font-size:calc(12.5px * var(--fs-mult));color:#BAE6FD;margin:-6px 0 14px;}
   .stat-block{margin-bottom:16px;}
   .stat-block:last-child{margin-bottom:0;}
   .stat-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
-  .stat-head .label{font-weight:700;font-size:14.5px;}
-  .stat-head .val{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:#A7F3D0;font-weight:700;font-size:13.5px;}
+  .stat-head .label{font-weight:700;font-size:calc(14.5px * var(--fs-mult));}
+  .stat-head .val{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:#A7F3D0;font-weight:700;font-size:calc(13.5px * var(--fs-mult));}
   .pbar-track{background:rgba(255,255,255,.18);border-radius:20px;height:10px;overflow:hidden;}
   .pbar-fill{height:100%;border-radius:20px;transition:width .3s;}
   .pbar-fill.coff{background:#22D3EE;}
   .pbar-fill.night{background:#FBBF24;}
-  .stat-foot{font-size:12.5px;color:#CBD5E1;margin-top:4px;}
+  .stat-foot{font-size:calc(12.5px * var(--fs-mult));color:#CBD5E1;margin-top:4px;}
   .loss-box{background:rgba(248,113,113,.16);border:1px solid rgba(248,113,113,.4);
-    border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13.5px;line-height:1.5;color:#FEE2E2;}
+    border-radius:10px;padding:10px 12px;margin-top:14px;font-size:calc(13.5px * var(--fs-mult));line-height:1.5;color:#FEE2E2;}
   .loss-box b{color:#FCA5A5;}
   .backup-reminder{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;
-    border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin-bottom:14px;}
+    border-radius:10px;padding:10px 12px;font-size:calc(13.5px * var(--fs-mult));line-height:1.5;margin-bottom:14px;}
   .backup-reminder.ok{background:#DCFCE7;border-color:#86EFAC;color:#166534;}
 
   /* ---------- Responsive: tablets & desktops adapt instead of staying phone-width ---------- */
@@ -174,11 +177,11 @@
   @media (min-width:1024px){
     .shell{max-width:1040px;}
     header{padding:26px 34px 20px;}
-    header h1{font-size:21px;}
+    header h1{font-size:calc(21px * var(--fs-mult));}
     nav.tabs{padding:14px 26px;}
     main{padding:26px 34px 56px;}
-    .cal-cell{font-size:12px;}
-    .cal-cell .d{font-size:13px;}
+    .cal-cell{font-size:calc(12px * var(--fs-mult));}
+    .cal-cell .d{font-size:calc(13px * var(--fs-mult));}
   }
 </style>
 </head>
@@ -289,8 +292,8 @@ function monthWeeks(year, month) { // Monday-first weeks, like python calendar.m
 
 /* ============================= DATA (holidays/leaves/extra) ============================= */
 let holidays = [{"date": "2026-01-26", "desc": "Republic Day"}, {"date": "2026-02-01", "desc": "Sant Ravidas Jayanti"}, {"date": "2026-02-15", "desc": "Mahashivratri"}, {"date": "2026-03-03", "desc": "Holi"}, {"date": "2026-03-04", "desc": "Holi 2nd day"}, {"date": "2026-03-19", "desc": "Gudi Padwa"}, {"date": "2026-03-20", "desc": "Cheti Chand"}, {"date": "2026-03-21", "desc": "Eid-ul-Fitr"}, {"date": "2026-03-27", "desc": "Ram Navami"}, {"date": "2026-03-31", "desc": "Mahavir Jayanti"}, {"date": "2026-04-03", "desc": "Good Friday"}, {"date": "2026-04-14", "desc": "Dr. Ambedkar Jayanti"}, {"date": "2026-04-20", "desc": "Parshuram Jayanti"}, {"date": "2026-05-01", "desc": "Buddha Purnima"}, {"date": "2026-05-27", "desc": "Eid-ul-Adha (Bakrid)"}, {"date": "2026-06-17", "desc": "Maharana Pratap Jayanti / Chhatrasal Jayanti"}, {"date": "2026-06-26", "desc": "Muharram"}, {"date": "2026-07-29", "desc": "Gurupurnima (LH)"}, {"date": "2026-08-15", "desc": "Independence Day"}, {"date": "2026-08-26", "desc": "Milad-un-Nabi"}, {"date": "2026-08-28", "desc": "Raksha Bandhan"}, {"date": "2026-09-04", "desc": "Janmashtami"}, {"date": "2026-09-14", "desc": "Ganesh Chaturthi"}, {"date": "2026-09-25", "desc": "Anant Chaturdashi (LH)"}, {"date": "2026-10-02", "desc": "Gandhi Jayanti"}, {"date": "2026-10-19", "desc": "Mahanavmi (LH)"}, {"date": "2026-10-20", "desc": "Dussehra"}, {"date": "2026-10-26", "desc": "Maharishi Valmiki Jayanti"}, {"date": "2026-11-08", "desc": "Diwali"}, {"date": "2026-11-09", "desc": "Govardhan Puja"}, {"date": "2026-11-15", "desc": "Bhagwan Birsa Munda Jayanti"}, {"date": "2026-11-24", "desc": "Guru Nanak Jayanti"}, {"date": "2026-12-25", "desc": "Christmas"}];
-let leaves   = [{"date": "2026-01-27", "desc": "CL"}, {"date": "2026-01-31", "desc": "CL"}, {"date": "2026-02-01", "desc": "CL"}, {"date": "2026-02-20", "desc": "CL"}, {"date": "2026-04-06", "desc": "CL"}, {"date": "2026-04-07", "desc": "CL"}, {"date": "2026-04-25", "desc": "EL"}, {"date": "2027-04-26", "desc": "EL"}, {"date": "2026-04-27", "desc": "EL"}, {"date": "2026-04-28", "desc": "EL"}, {"date": "2026-04-29", "desc": "EL"}, {"date": "2026-04-30", "desc": "EL"}, {"date": "2026-05-18", "desc": "CL"}, {"date": "2026-05-19", "desc": "CL"}, {"date": "2026-05-26", "desc": "CL"}, {"date": "2026-06-20", "desc": "CL"}, {"date": "2026-06-21", "desc": "CL"}, {"date": "2026-06-23", "desc": "EL"}, {"date": "2026-06-24", "desc": "EL"}, {"date": "2026-06-25", "desc": "EL"}, {"date": "2026-06-26", "desc": "EL"}, {"date": "2026-06-27", "desc": "EL"}, {"date": "2026-06-28", "desc": "EL"}, {"date": "2026-06-29", "desc": "EL"}, {"date": "2026-07-12", "desc": "CL"}, {"date": "2026-07-24", "desc": "CL"}, {"date": "2026-07-27", "desc": "EL"}, {"date": "2026-07-28", "desc": "EL"}, {"date": "2026-07-29", "desc": "EL"}, {"date": "2026-08-09", "desc": "CL"}, {"date": "2026-08-24", "desc": "CL"}, {"date": "2026-08-28", "desc": "CL"}, {"date": "2026-08-31", "desc": "EL"}];
-let extra    = [{"date": "2026-01-05", "desc": "Extra Duty in Group 3", "shift": "A"}];
+let leaves   = [];
+let extra    = [];
 
 function getCoff(shiftFn, year) {
   const leaveDates = new Set(leaves.map(l => l.date));
@@ -502,6 +505,7 @@ function savePrefs(){
     department: state.department,
     genShift: state.genShift,
     theme: state.theme,
+    fontSize: state.fontSize,
     basicCoff: state.basicCoff,
     da1Pct: state.da1Pct, da1Month: state.da1Month, da1Year: state.da1Year,
     da2Pct: state.da2Pct, da2Month: state.da2Month, da2Year: state.da2Year,
@@ -510,7 +514,7 @@ function savePrefs(){
   })); } catch(e) {}
 }
 function loadPrefs(){
-  const defaults = {group:1, department:'OPN', genShift:'B', theme:'light', basicCoff:0,
+  const defaults = {group:1, department:'OPN', genShift:'B', theme:'light', fontSize:'normal', basicCoff:0,
     da1Pct:'', da1Month:'', da1Year:'', da2Pct:'', da2Month:'', da2Year:'', da3Pct:'', da3Month:'', da3Year:'',
     nightAllow:0};
   try {
@@ -521,6 +525,7 @@ function loadPrefs(){
       if (p.department === 'OPN' || p.department === 'IMD' || p.department === 'OPN_GEN') defaults.department = p.department;
       if (p.genShift === 'B' || p.genShift === 'C') defaults.genShift = p.genShift;
       if (p.theme === 'light' || p.theme === 'dark') defaults.theme = p.theme;
+      if (p.fontSize === 'normal' || p.fontSize === 'large' || p.fontSize === 'xlarge') defaults.fontSize = p.fontSize;
       if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
       if (p.nightAllow !== undefined) defaults.nightAllow = p.nightAllow;
       if (p.da1Pct !== undefined) {
@@ -549,6 +554,7 @@ const state = {
   department: prefs.department,
   genShift: prefs.genShift,
   theme: prefs.theme,
+  fontSize: prefs.fontSize,
   basicCoff: prefs.basicCoff,
   da1Pct: prefs.da1Pct, da1Month: prefs.da1Month, da1Year: prefs.da1Year,
   da2Pct: prefs.da2Pct, da2Month: prefs.da2Month, da2Year: prefs.da2Year,
@@ -583,6 +589,9 @@ function genShiftOptions(sel){
 }
 function themeOptions(sel){
   return `<option value="light" ${sel==='light'?'selected':''}>☀️ Light</option><option value="dark" ${sel==='dark'?'selected':''}>🌙 Dark</option>`;
+}
+function fontSizeOptions(sel){
+  return `<option value="normal" ${sel==='normal'?'selected':''}>Normal</option><option value="large" ${sel==='large'?'selected':''}>Large</option><option value="xlarge" ${sel==='xlarge'?'selected':''}>Extra Large</option>`;
 }
 
 /* ============================= RENDERERS ============================= */
@@ -701,6 +710,7 @@ function renderToday(){
           <div class="section-label">Preferences</div>
           <div class="row">
             <div class="field"><label>Theme</label><select id="tTheme">${themeOptions(state.theme)}</select></div>
+            <div class="field"><label>Font Size</label><select id="tFontSize">${fontSizeOptions(state.fontSize)}</select></div>
           </div>
         </div>
       </div>
@@ -1073,14 +1083,14 @@ function bindCommon(prefix, fields){
       if (type === 'float') v = parseFloat(v) || 0;
       else if (type) v = parseInt(v,10);
       state[key] = v;
-      if (['group','department','genShift','theme','basicCoff','nightAllow',
+      if (['group','department','genShift','theme','fontSize','basicCoff','nightAllow',
            'da1Pct','da1Month','da1Year','da2Pct','da2Month','da2Year','da3Pct','da3Month','da3Year'].includes(key)) savePrefs();
       render();
     });
   });
 }
 function bindTabInputs(){
-  bindCommon('t', [['Department','department'],['Group','group',true],['GenShift','genShift'],['Theme','theme'],
+  bindCommon('t', [['Department','department'],['Group','group',true],['GenShift','genShift'],['Theme','theme'],['FontSize','fontSize'],
     ['BasicCoff','basicCoff','float'],['NightAllow','nightAllow','float'],
     ['Da1Pct','da1Pct','float'],['Da1Month','da1Month',true],['Da1Year','da1Year',true],
     ['Da2Pct','da2Pct','float'],['Da2Month','da2Month',true],['Da2Year','da2Year',true],
@@ -1260,6 +1270,7 @@ function bindTabInputs(){
 
 function render(){
   document.documentElement.setAttribute('data-theme', state.theme);
+  document.documentElement.setAttribute('data-fontsize', state.fontSize);
   document.getElementById('content').innerHTML = RENDERERS[state.tab]();
   document.getElementById('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab===state.tab));
   const badge = document.getElementById('deptBadge');
