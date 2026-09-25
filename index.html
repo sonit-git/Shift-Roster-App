@@ -74,6 +74,9 @@
   .da-slot-tag{width:24px;height:24px;border-radius:50%;background:var(--line);color:var(--ink-soft);
     font-size:calc(12.5px * var(--fs-mult));font-weight:700;display:flex;align-items:center;justify-content:center;
     flex:0 0 auto;margin-bottom:6px;}
+  .da-remove-btn{flex:0 0 auto;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);
+    background:var(--card);color:#DC2626;font-size:calc(13px * var(--fs-mult));cursor:pointer;
+    margin-bottom:6px;display:flex;align-items:center;justify-content:center;padding:0;}
   .field label{font-size:calc(12.5px * var(--fs-mult));color:var(--ink-soft);font-weight:600;text-transform:none;}
   select,input[type=date],input[type=text],input[type=number]{
     font-size:calc(16.5px * var(--fs-mult));padding:10px 11px;border-radius:8px;border:1px solid var(--line);
@@ -127,10 +130,6 @@
     background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;
     margin-bottom:12px;font-size:calc(14px * var(--fs-mult));color:#92400E;}
   .undo-banner button{background:none;border:none;color:#0E7490;font-weight:700;font-size:calc(14px * var(--fs-mult));cursor:pointer;}
-  .exchange-line{padding:9px 0;border-bottom:1px solid var(--line);font-size:calc(14.5px * var(--fs-mult));display:flex;
-    justify-content:space-between;align-items:center;}
-  .pill{font-size:calc(12.5px * var(--fs-mult));font-weight:700;padding:4px 10px;border-radius:20px;}
-  .pill.yes{background:#DCFCE7;color:#166534;} .pill.no{background:#FEE2E2;color:#991B1B;}
   .empty-note{font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);text-align:center;padding:14px 0;}
   .data-item{display:flex;justify-content:space-between;align-items:center;
     padding:9px 0;border-bottom:1px solid var(--line);font-size:calc(14.5px * var(--fs-mult));gap:8px;}
@@ -240,16 +239,14 @@ function personalShiftFn() {
   return (utc) => getShift(group, utc);
 }
 
-// DA can change mid-year, so it's stored as up to 3 slots (% + effective month/year).
-// Each slot applies from its effective month onward, until the next slot (by
+// DA can change mid-year, so it's stored as a free-length list of {pct, month, year}
+// slots. Each slot applies from its effective month onward, until the next slot (by
 // effective date) takes over. The earliest filled slot also covers every date
 // before it — there's no "DA = 0" gap before the first known rate.
 function daSlotsSorted(){
-  const raw = [
-    {pct: parseFloat(state.da1Pct), month: parseInt(state.da1Month,10), year: parseInt(state.da1Year,10)},
-    {pct: parseFloat(state.da2Pct), month: parseInt(state.da2Month,10), year: parseInt(state.da2Year,10)},
-    {pct: parseFloat(state.da3Pct), month: parseInt(state.da3Month,10), year: parseInt(state.da3Year,10)}
-  ].filter(s => !isNaN(s.pct) && !isNaN(s.month) && !isNaN(s.year));
+  const raw = (state.daSlots || [])
+    .map(s => ({pct: parseFloat(s.pct), month: parseInt(s.month,10), year: parseInt(s.year,10)}))
+    .filter(s => !isNaN(s.pct) && !isNaN(s.month) && !isNaN(s.year));
   raw.sort((a,b) => (a.year*12+a.month) - (b.year*12+b.month));
   return raw;
 }
@@ -371,30 +368,6 @@ function getLostNights(shiftFn, year) {
   });
   return dates;
 }
-function buildExchangeResult(mine, shifts, excludeGroup) {
-  const changeNeeded = !(mine === "*" || mine === "D");
-  const options = [];
-  if (changeNeeded) {
-    for (let g=1; g<=4; g++) {
-      if (g === excludeGroup) continue;
-      const s = shifts[g-1];
-      options.push({group:g, shift:s, canExchange: (s === "*" || s === "D")});
-    }
-  }
-  return {mine, changeNeeded, options};
-}
-function shiftExchange(utcDate, group1) {
-  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
-  return buildExchangeResult(shifts[group1-1], shifts, group1);
-}
-// OPN(GEN) staff don't belong to one of the 4 rotating groups, but they can still
-// swap duty with any group whose shift that day is Off or D — same "can exchange"
-// rule as between two rotating groups, just compared against their own fixed B/C shift.
-function shiftExchangeGen(utcDate, genShift) {
-  const mine = getShiftGen(genShift, utcDate);
-  const shifts = [1,2,3,4].map(g => getShift(g, utcDate));
-  return buildExchangeResult(mine, shifts, null);
-}
 
 // Shared add-with-conflict-check helpers, used by both the Data tab and the
 // Calendar day editor. Each warns (rather than silently overwriting) if the
@@ -448,15 +421,6 @@ function monthlyRoster(year, month) {
   }
   return rows;
 }
-function shiftCount(year, month) {
-  const days = daysInMonth(year, month); const result = [];
-  for (let g=1; g<=4; g++) {
-    const counts = {A:0,B:0,C:0,D:0,"*":0};
-    for (let d=1; d<=days; d++) counts[getShift(g, Date.UTC(year, month-1, d))]++;
-    result.push({group:g, counts});
-  }
-  return result;
-}
 
 /* ============================= PERSISTENCE (per-device, local only) ============================= */
 const DATA_KEY = 'shiftRosterData_v1';
@@ -507,15 +471,13 @@ function savePrefs(){
     theme: state.theme,
     fontSize: state.fontSize,
     basicCoff: state.basicCoff,
-    da1Pct: state.da1Pct, da1Month: state.da1Month, da1Year: state.da1Year,
-    da2Pct: state.da2Pct, da2Month: state.da2Month, da2Year: state.da2Year,
-    da3Pct: state.da3Pct, da3Month: state.da3Month, da3Year: state.da3Year,
+    daSlots: state.daSlots,
     nightAllow: state.nightAllow
   })); } catch(e) {}
 }
 function loadPrefs(){
   const defaults = {group:1, department:'OPN', genShift:'B', theme:'light', fontSize:'normal', basicCoff:0,
-    da1Pct:'', da1Month:'', da1Year:'', da2Pct:'', da2Month:'', da2Year:'', da3Pct:'', da3Month:'', da3Year:'',
+    daSlots:[{pct:'', month:'', year:''}],
     nightAllow:0};
   try {
     const raw = localStorage.getItem(PREF_KEY);
@@ -528,16 +490,21 @@ function loadPrefs(){
       if (p.fontSize === 'normal' || p.fontSize === 'large' || p.fontSize === 'xlarge') defaults.fontSize = p.fontSize;
       if (p.basicCoff !== undefined) defaults.basicCoff = p.basicCoff;
       if (p.nightAllow !== undefined) defaults.nightAllow = p.nightAllow;
-      if (p.da1Pct !== undefined) {
-        // New multi-slot DA format.
-        defaults.da1Pct = p.da1Pct; defaults.da1Month = p.da1Month; defaults.da1Year = p.da1Year;
-        defaults.da2Pct = p.da2Pct; defaults.da2Month = p.da2Month; defaults.da2Year = p.da2Year;
-        defaults.da3Pct = p.da3Pct; defaults.da3Month = p.da3Month; defaults.da3Year = p.da3Year;
+      if (Array.isArray(p.daSlots) && p.daSlots.length) {
+        // Current format: a free-length list of {pct, month, year}.
+        defaults.daSlots = p.daSlots;
+      } else if (p.da1Pct !== undefined) {
+        // Migrate the older fixed 3-slot format, keeping only the ones actually filled in.
+        const migrated = [
+          {pct:p.da1Pct, month:p.da1Month, year:p.da1Year},
+          {pct:p.da2Pct, month:p.da2Month, year:p.da2Year},
+          {pct:p.da3Pct, month:p.da3Month, year:p.da3Year}
+        ].filter(s => s.pct !== '' && s.pct !== undefined && s.pct !== null);
+        defaults.daSlots = migrated.length ? migrated : defaults.daSlots;
       } else if (p.da !== undefined && p.da !== 0 && p.da !== '') {
-        // Migrate an old single "da" value into Slot 1, applied from Jan 2024 onward
-        // so it keeps covering every date already in the app until the user adds a
-        // real Slot 2 for whenever their DA actually changed.
-        defaults.da1Pct = p.da; defaults.da1Month = 1; defaults.da1Year = 2024;
+        // Migrate an even older single "da" value, applied from Jan 2024 onward so
+        // it keeps covering every date already in the app.
+        defaults.daSlots = [{pct:p.da, month:1, year:2024}];
       }
     }
   } catch(e) {}
@@ -556,9 +523,7 @@ const state = {
   theme: prefs.theme,
   fontSize: prefs.fontSize,
   basicCoff: prefs.basicCoff,
-  da1Pct: prefs.da1Pct, da1Month: prefs.da1Month, da1Year: prefs.da1Year,
-  da2Pct: prefs.da2Pct, da2Month: prefs.da2Month, da2Year: prefs.da2Year,
-  da3Pct: prefs.da3Pct, da3Month: prefs.da3Month, da3Year: prefs.da3Year,
+  daSlots: prefs.daSlots,
   nightAllow: prefs.nightAllow,
   year: today.getFullYear() >= 2024 && today.getFullYear() <= 2035 ? today.getFullYear() : 2026,
   month: today.getMonth()+1,
@@ -570,8 +535,7 @@ const state = {
 
 const TABS = [
   ['today','Today'], ['calendar','Calendar'], ['roster','Roster'],
-  ['exchange','Exchange'], ['count','Count'], ['coff','C-OFF'],
-  ['night','Night'], ['data','Data']
+  ['coff','C-OFF'], ['night','Night'], ['data','Data']
 ];
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
@@ -579,7 +543,6 @@ function badge(s){ const cls = s==='*' ? 'OFF' : s; const label = s==='*'?'OFF':
 function yearOptions(sel){ let o=''; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
 function yearOptionsWithAll(sel){ let o=`<option value="0" ${sel==0?'selected':''}>All years</option>`; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
 function monthOptions(sel){ let o=''; MONTH_NAMES.forEach((m,i)=>{ const v=i+1; o+=`<option value="${v}" ${v==sel?'selected':''}>${m}</option>`; }); return o; }
-function dayOptions(sel){ let o=''; for(let d=1;d<=31;d++) o+=`<option value="${d}" ${d==sel?'selected':''}>${d}</option>`; return o; }
 function groupOptions(sel){ let o=''; for(let g=1;g<=4;g++) o+=`<option value="${g}" ${g==sel?'selected':''}>Group ${g}</option>`; return o; }
 function deptOptions(sel){
   return `<option value="OPN" ${sel==='OPN'?'selected':''}>OPN</option><option value="IMD" ${sel==='IMD'?'selected':''}>IMD</option><option value="OPN_GEN" ${sel==='OPN_GEN'?'selected':''}>OPN(GEN)</option>`;
@@ -687,25 +650,16 @@ function renderToday(){
             <div class="field"><label>Basic Pay (C-Off calc)</label><input type="number" step="0.01" id="tBasicCoff" value="${state.basicCoff || ''}" placeholder="e.g. 30000"></div>
             <div class="field"><label>Night Allowance / night</label><input type="number" step="0.01" id="tNightAllow" value="${state.nightAllow || ''}" placeholder="e.g. 300"></div>
           </div>
-          <div class="hint" style="margin:0 0 8px;">DA %: fill Slot 1 with your current rate. If DA changes mid-year, add Slot 2 (or 3) with the month it starts from — the app switches over automatically from that month.</div>
+          <div class="hint" style="margin:0 0 8px;">DA %: add your current rate below. If DA changes mid-year, tap "+ Add DA change" and enter the new rate with the month it starts from — the app switches over automatically from that month.</div>
+          ${state.daSlots.map((slot, idx) => `
           <div class="row da-slot-row">
-            <span class="da-slot-tag">1</span>
-            <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDa1Pct" value="${state.da1Pct===''||state.da1Pct===undefined?'':state.da1Pct}" placeholder="e.g. 55"></div>
-            <div class="field"><label>From Month</label><select id="tDa1Month"><option value="">—</option>${monthOptions(state.da1Month)}</select></div>
-            <div class="field"><label>Year</label><select id="tDa1Year"><option value="">—</option>${yearOptions(state.da1Year)}</select></div>
-          </div>
-          <div class="row da-slot-row">
-            <span class="da-slot-tag">2</span>
-            <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDa2Pct" value="${state.da2Pct===''||state.da2Pct===undefined?'':state.da2Pct}" placeholder="optional"></div>
-            <div class="field"><label>From Month</label><select id="tDa2Month"><option value="">—</option>${monthOptions(state.da2Month)}</select></div>
-            <div class="field"><label>Year</label><select id="tDa2Year"><option value="">—</option>${yearOptions(state.da2Year)}</select></div>
-          </div>
-          <div class="row da-slot-row">
-            <span class="da-slot-tag">3</span>
-            <div class="field"><label>DA %</label><input type="number" step="0.01" id="tDa3Pct" value="${state.da3Pct===''||state.da3Pct===undefined?'':state.da3Pct}" placeholder="optional"></div>
-            <div class="field"><label>From Month</label><select id="tDa3Month"><option value="">—</option>${monthOptions(state.da3Month)}</select></div>
-            <div class="field"><label>Year</label><select id="tDa3Year"><option value="">—</option>${yearOptions(state.da3Year)}</select></div>
-          </div>
+            <span class="da-slot-tag">${idx+1}</span>
+            <div class="field"><label>DA %</label><input type="number" step="0.01" class="da-pct-input" data-idx="${idx}" value="${slot.pct===''||slot.pct===undefined?'':slot.pct}" placeholder="e.g. 55"></div>
+            <div class="field"><label>From Month</label><select class="da-month-select" data-idx="${idx}"><option value="">—</option>${monthOptions(slot.month)}</select></div>
+            <div class="field"><label>Year</label><select class="da-year-select" data-idx="${idx}"><option value="">—</option>${yearOptions(slot.year)}</select></div>
+            ${state.daSlots.length>1 ? `<button type="button" class="da-remove-btn" data-idx="${idx}" title="Remove this DA change">✕</button>` : ''}
+          </div>`).join('')}
+          <button type="button" class="ghost" id="tDaAdd" style="width:100%;margin-bottom:12px;">+ Add DA change</button>
 
           <div class="section-label">Preferences</div>
           <div class="row">
@@ -885,62 +839,6 @@ function renderRoster(){
   `;
 }
 
-function renderExchange(){
-  const isGen = state.department === 'OPN_GEN';
-  const utc = Date.UTC(state.year, state.month-1, state.day);
-  const r = isGen ? shiftExchangeGen(utc, state.genShift) : shiftExchange(utc, state.group);
-  let body;
-  if (!r.changeNeeded) {
-    body = `<p class="empty-note">${isGen ? `Your shift ${r.mine}` : `Group ${state.group} has shift ${r.mine}`} — change not needed.</p>`;
-  } else {
-    const lines = r.options.map(o => `<div class="exchange-line">
-      <span>Group ${o.group} — ${badge(o.shift)}</span>
-      <span class="pill ${o.canExchange?'yes':'no'}">${o.canExchange?'Can exchange':'Cannot exchange'}</span>
-    </div>`).join('');
-    body = `<div class="hint">Your shift: ${badge(r.mine)} on ${fmtDMY(utc)} (${weekdayName(utc)})</div>${lines}`;
-  }
-  return `
-    <div class="card">
-      <h2>Shift Exchange</h2>
-      <div class="row">
-        ${isGen
-          ? `<div class="field"><label>Shift</label><select id="eGenShift">${genShiftOptions(state.genShift)}</select></div>`
-          : `<div class="field"><label>Group</label><select id="eGroup">${groupOptions(state.group)}</select></div>`}
-        <div class="field"><label>Year</label><select id="eYear">${yearOptions(state.year)}</select></div>
-      </div>
-      <div class="row">
-        <div class="field"><label>Month</label><select id="eMonth">${monthOptions(state.month)}</select></div>
-        <div class="field"><label>Day</label><select id="eDay">${dayOptions(state.day)}</select></div>
-      </div>
-    </div>
-    <div class="card">${body}</div>
-  `;
-}
-
-function renderCount(){
-  if (state.department === 'OPN_GEN') {
-    return `<div class="card"><h2>Count Shifts</h2>
-      <div class="empty-note">Not applicable for OPN(GEN) — there are no rotating groups to count shifts for.</div>
-    </div>`;
-  }
-  const result = shiftCount(state.year, state.month);
-  const body = result.map(r => `<tr><td>G${r.group}</td><td>${r.counts.A}</td><td>${r.counts.B}</td>
-    <td>${r.counts.C}</td><td>${r.counts.D}</td><td>${r.counts['*']}</td></tr>`).join('');
-  return `
-    <div class="card">
-      <h2>Count Shifts</h2>
-      <div class="row">
-        <div class="field"><label>Year</label><select id="ctYear">${yearOptions(state.year)}</select></div>
-        <div class="field"><label>Month</label><select id="ctMonth">${monthOptions(state.month)}</select></div>
-      </div>
-    </div>
-    <div class="card"><table>
-      <tr><th>Group</th><th>A</th><th>B</th><th>C</th><th>D</th><th>Off</th></tr>
-      ${body}
-    </table></div>
-  `;
-}
-
 function renderCoff(){
   const isGen = state.department === 'OPN_GEN';
   const shiftFn = personalShiftFn();
@@ -1072,7 +970,7 @@ function renderData(){
 }
 
 const RENDERERS = {today:renderToday, calendar:renderCalendar, roster:renderRoster,
-  exchange:renderExchange, count:renderCount, coff:renderCoff, night:renderNight, data:renderData};
+  coff:renderCoff, night:renderNight, data:renderData};
 
 /* ============================= WIRE-UP ============================= */
 function bindCommon(prefix, fields){
@@ -1083,25 +981,55 @@ function bindCommon(prefix, fields){
       if (type === 'float') v = parseFloat(v) || 0;
       else if (type) v = parseInt(v,10);
       state[key] = v;
-      if (['group','department','genShift','theme','fontSize','basicCoff','nightAllow',
-           'da1Pct','da1Month','da1Year','da2Pct','da2Month','da2Year','da3Pct','da3Month','da3Year'].includes(key)) savePrefs();
+      if (['group','department','genShift','theme','fontSize','basicCoff','nightAllow'].includes(key)) savePrefs();
       render();
     });
   });
 }
 function bindTabInputs(){
   bindCommon('t', [['Department','department'],['Group','group',true],['GenShift','genShift'],['Theme','theme'],['FontSize','fontSize'],
-    ['BasicCoff','basicCoff','float'],['NightAllow','nightAllow','float'],
-    ['Da1Pct','da1Pct','float'],['Da1Month','da1Month',true],['Da1Year','da1Year',true],
-    ['Da2Pct','da2Pct','float'],['Da2Month','da2Month',true],['Da2Year','da2Year',true],
-    ['Da3Pct','da3Pct','float'],['Da3Month','da3Month',true],['Da3Year','da3Year',true]]);
+    ['BasicCoff','basicCoff','float'],['NightAllow','nightAllow','float']]);
   bindCommon('c', [['Group','group',true],['GenShift','genShift'],['Year','year',true],['Month','month',true]]);
   bindCommon('r', [['Year','year',true],['Month','month',true]]);
-  bindCommon('e', [['Group','group',true],['GenShift','genShift'],['Year','year',true],['Month','month',true],['Day','day',true]]);
-  bindCommon('ct',[['Year','year',true],['Month','month',true]]);
   bindCommon('co',[['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
   bindCommon('n', [['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
   bindCommon('dd',[['Year','dataYear',true]]);
+
+  if (state.tab === 'today') {
+    document.querySelectorAll('.da-pct-input').forEach(node => {
+      node.addEventListener('change', e => {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        state.daSlots[idx].pct = parseFloat(e.target.value) || '';
+        savePrefs(); render();
+      });
+    });
+    document.querySelectorAll('.da-month-select').forEach(node => {
+      node.addEventListener('change', e => {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        state.daSlots[idx].month = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+        savePrefs(); render();
+      });
+    });
+    document.querySelectorAll('.da-year-select').forEach(node => {
+      node.addEventListener('change', e => {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        state.daSlots[idx].year = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+        savePrefs(); render();
+      });
+    });
+    document.querySelectorAll('.da-remove-btn').forEach(node => {
+      node.addEventListener('click', e => {
+        const idx = parseInt(e.currentTarget.dataset.idx, 10);
+        state.daSlots.splice(idx, 1);
+        savePrefs(); render();
+      });
+    });
+    const addBtn = document.getElementById('tDaAdd');
+    if (addBtn) addBtn.addEventListener('click', () => {
+      state.daSlots.push({pct:'', month:'', year:''});
+      render();
+    });
+  }
 
   if (state.tab === 'coff') {
     const btn = document.getElementById('coExportCsv');
@@ -1278,6 +1206,30 @@ function render(){
   bindTabInputs();
 }
 
+function attachSwipeNav(){
+  const content = document.getElementById('content');
+  let startX = 0, startY = 0, tracking = false;
+  content.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY; tracking = true;
+  }, {passive:true});
+  content.addEventListener('touchend', e => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX, dy = t.clientY - startY;
+    // Require a clearly horizontal swipe so vertical scrolling never gets mistaken for a tab change.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const idx = TABS.findIndex(([id]) => id === state.tab);
+    if (idx === -1) return;
+    const newIdx = dx < 0 ? Math.min(idx+1, TABS.length-1) : Math.max(idx-1, 0);
+    if (newIdx === idx) return;
+    state.tab = TABS[newIdx][0];
+    render();
+    const activeBtn = document.querySelector('#tabs button.active');
+    if (activeBtn) activeBtn.scrollIntoView({inline:'center', behavior:'smooth', block:'nearest'});
+  }, {passive:true});
+}
 function init(){
   document.getElementById('headerDate').textContent =
     `${WEEKDAYS[today.getDay()]}, ${String(today.getDate()).padStart(2,'0')} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
@@ -1288,6 +1240,7 @@ function init(){
     b.addEventListener('click', () => { state.tab = id; render(); });
     tabsNav.appendChild(b);
   });
+  attachSwipeNav();
   render();
 }
 init();
