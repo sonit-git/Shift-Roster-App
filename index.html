@@ -173,6 +173,33 @@
   .backup-reminder{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;
     border-radius:10px;padding:10px 12px;font-size:calc(13.5px * var(--fs-mult));line-height:1.5;margin-bottom:14px;}
   .backup-reminder.ok{background:#DCFCE7;border-color:#86EFAC;color:#166534;}
+  .data-item .edit-btn{background:none;border:none;color:var(--accent);font-size:calc(16px * var(--fs-mult));cursor:pointer;padding:2px 6px;}
+  .edit-row{background:var(--paper);border-radius:10px;padding:10px;margin:6px 0;}
+  .photo-status{display:block;font-size:calc(12px * var(--fs-mult));color:var(--accent);margin-top:4px;font-weight:600;}
+
+  /* ---------- Self-certificate lightbox: close button + pinch/pan zoom ---------- */
+  .cert-lightbox{touch-action:none;}
+  .cert-lightbox img{touch-action:none;}
+  .cert-lightbox-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;
+    background:rgba(255,255,255,.15);color:#fff;border:none;font-size:20px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;z-index:10001;}
+  .cert-lightbox-close:active{background:rgba(255,255,255,.3);}
+
+  /* ---------- Self-certificate photo crop modal ---------- */
+  .crop-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;
+    flex-direction:column;align-items:center;justify-content:center;padding:16px;}
+  .crop-modal.show{display:flex;}
+  .crop-stage{position:relative;display:inline-block;max-width:100%;max-height:65vh;touch-action:none;}
+  .crop-stage img{display:block;max-width:100%;max-height:65vh;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+  .crop-box{position:absolute;border:2px solid #22D3EE;box-shadow:0 0 0 9999px rgba(0,0,0,.6);
+    cursor:move;touch-action:none;}
+  .crop-handle{position:absolute;width:24px;height:24px;background:#22D3EE;border-radius:50%;
+    transform:translate(-50%,-50%);touch-action:none;box-shadow:0 0 0 3px rgba(0,0,0,.6);}
+  .crop-handle.nw{top:0;left:0;} .crop-handle.ne{top:0;left:100%;}
+  .crop-handle.sw{top:100%;left:0;} .crop-handle.se{top:100%;left:100%;}
+  .crop-hint{color:#CBD5E1;font-size:calc(13px * var(--fs-mult));margin-top:12px;text-align:center;}
+  .crop-actions{display:flex;gap:10px;margin-top:14px;width:100%;max-width:420px;}
+  .crop-actions button{flex:1;}
 
   /* ---------- Responsive: tablets & desktops adapt instead of staying phone-width ---------- */
   @media (min-width:700px){
@@ -206,7 +233,27 @@
   <nav class="tabs" id="tabs"></nav>
   <main id="content"></main>
 </div>
-<div id="certLightbox" class="cert-lightbox"><img id="certLightboxImg" alt="Self-certificate photo"></div>
+<div id="certLightbox" class="cert-lightbox">
+  <button type="button" id="certLightboxClose" class="cert-lightbox-close" aria-label="Close">✕</button>
+  <img id="certLightboxImg" alt="Self-certificate photo">
+</div>
+<div id="cropModal" class="crop-modal">
+  <div class="crop-stage" id="cropStage">
+    <img id="cropImg" alt="Crop preview">
+    <div class="crop-box" id="cropBox">
+      <div class="crop-handle nw" data-h="nw"></div>
+      <div class="crop-handle ne" data-h="ne"></div>
+      <div class="crop-handle sw" data-h="sw"></div>
+      <div class="crop-handle se" data-h="se"></div>
+    </div>
+  </div>
+  <div class="crop-hint">Drag the corners to adjust the crop area</div>
+  <div class="crop-actions">
+    <button type="button" class="ghost" id="cropCancel">Cancel</button>
+    <button type="button" class="ghost" id="cropUseFull">Use Full Photo</button>
+    <button type="button" class="primary" id="cropConfirm">Crop &amp; Save</button>
+  </div>
+</div>
 
 <script>
 /* ============================= CORE SHIFT LOGIC ============================= */
@@ -570,6 +617,7 @@ async function attachCertPhoto(dateKey, file){
 }
 function showCertLightbox(blob){
   const img = document.getElementById('certLightboxImg');
+  lbReset();
   img.src = URL.createObjectURL(blob);
   document.getElementById('certLightbox').classList.add('show');
 }
@@ -579,6 +627,237 @@ function hideCertLightbox(){
   box.classList.remove('show');
   if (img.src) URL.revokeObjectURL(img.src);
   img.src = '';
+  lbReset();
+}
+
+/* ---------- Lightbox pinch-to-zoom / pan (touch + mouse wheel) ---------- */
+const lbState = { pointers:new Map(), lastDist:0, scale:1, originX:0, originY:0, panStart:null };
+function lbApplyTransform(){
+  const img = document.getElementById('certLightboxImg');
+  img.style.transform = `translate(${lbState.originX}px, ${lbState.originY}px) scale(${lbState.scale})`;
+}
+function lbReset(){
+  lbState.pointers.clear(); lbState.lastDist = 0; lbState.scale = 1;
+  lbState.originX = 0; lbState.originY = 0; lbState.panStart = null;
+  lbApplyTransform();
+}
+function lbDist(pts){ const [a,b] = pts; return Math.hypot(a.x-b.x, a.y-b.y); }
+function initLightboxZoom(){
+  const img = document.getElementById('certLightboxImg');
+  img.addEventListener('pointerdown', e => {
+    img.setPointerCapture(e.pointerId);
+    lbState.pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (lbState.pointers.size === 1) lbState.panStart = {x:e.clientX, y:e.clientY, ox:lbState.originX, oy:lbState.originY};
+    if (lbState.pointers.size === 2) lbState.lastDist = lbDist([...lbState.pointers.values()]);
+  });
+  img.addEventListener('pointermove', e => {
+    if (!lbState.pointers.has(e.pointerId)) return;
+    lbState.pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (lbState.pointers.size === 2) {
+      const d = lbDist([...lbState.pointers.values()]);
+      if (lbState.lastDist) lbState.scale = Math.min(5, Math.max(1, lbState.scale * (d/lbState.lastDist)));
+      lbState.lastDist = d;
+      lbApplyTransform();
+    } else if (lbState.pointers.size === 1 && lbState.scale > 1 && lbState.panStart) {
+      lbState.originX = lbState.panStart.ox + (e.clientX - lbState.panStart.x);
+      lbState.originY = lbState.panStart.oy + (e.clientY - lbState.panStart.y);
+      lbApplyTransform();
+    }
+  });
+  function endPtr(e){
+    lbState.pointers.delete(e.pointerId);
+    lbState.lastDist = 0;
+    if (lbState.pointers.size === 1) {
+      const p = [...lbState.pointers.values()][0];
+      lbState.panStart = {x:p.x, y:p.y, ox:lbState.originX, oy:lbState.originY};
+    }
+    if (lbState.pointers.size === 0 && lbState.scale <= 1) lbReset();
+  }
+  img.addEventListener('pointerup', endPtr);
+  img.addEventListener('pointercancel', endPtr);
+  img.addEventListener('wheel', e => {
+    e.preventDefault();
+    lbState.scale = Math.min(5, Math.max(1, lbState.scale - e.deltaY*0.01));
+    if (lbState.scale <= 1) { lbState.originX = 0; lbState.originY = 0; }
+    lbApplyTransform();
+  }, {passive:false});
+}
+
+/* ============================= SELF-CERTIFICATE PHOTO CROPPER ============================= */
+// Lets the user crop a photo (or use it uncropped) before it's compressed and saved.
+// cropCtx.dateKey is set when cropping a photo for an existing extra-duty entry (saved
+// immediately). cropCtx.inputEl is set when cropping a photo picked before the entry
+// exists yet (the new-entry / calendar-day-editor forms) — the cropped blob is held in
+// pendingCroppedBlobs, keyed by input id, until the entry is actually created.
+let cropCtx = null;
+const pendingCroppedBlobs = {};
+function openCropper(file, ctx){
+  cropCtx = Object.assign({file}, ctx);
+  const img = document.getElementById('cropImg');
+  const url = URL.createObjectURL(file);
+  img.onload = () => initCropBox();
+  img.src = url;
+  document.getElementById('cropModal').classList.add('show');
+}
+function closeCropper(){
+  document.getElementById('cropModal').classList.remove('show');
+  const img = document.getElementById('cropImg');
+  if (img.src) URL.revokeObjectURL(img.src);
+  img.src = '';
+  cropCtx = null;
+}
+function initCropBox(){
+  requestAnimationFrame(() => {
+    const stage = document.getElementById('cropStage');
+    const box = document.getElementById('cropBox');
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const bw = w*0.8, bh = h*0.8;
+    box.style.left = ((w-bw)/2)+'px';
+    box.style.top = ((h-bh)/2)+'px';
+    box.style.width = bw+'px';
+    box.style.height = bh+'px';
+  });
+}
+function setupCropDrag(){
+  const stage = document.getElementById('cropStage');
+  const box = document.getElementById('cropBox');
+  const MIN = 40;
+  let mode = null, startX = 0, startY = 0, startBox = null;
+  function boxRect(){ return {x:box.offsetLeft, y:box.offsetTop, w:box.offsetWidth, h:box.offsetHeight}; }
+  function apply(r){
+    box.style.left = r.x+'px'; box.style.top = r.y+'px';
+    box.style.width = r.w+'px'; box.style.height = r.h+'px';
+  }
+  function clamp(r){
+    const W = stage.clientWidth, H = stage.clientHeight;
+    r.w = Math.max(MIN, Math.min(r.w, W));
+    r.h = Math.max(MIN, Math.min(r.h, H));
+    r.x = Math.max(0, Math.min(r.x, W - r.w));
+    r.y = Math.max(0, Math.min(r.y, H - r.h));
+    return r;
+  }
+  function onDown(e, m){
+    mode = m; startX = e.clientX; startY = e.clientY; startBox = boxRect();
+    e.target.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  box.addEventListener('pointerdown', e => { if (e.target === box) onDown(e, 'move'); });
+  box.querySelectorAll('.crop-handle').forEach(h => {
+    h.addEventListener('pointerdown', e => { e.stopPropagation(); onDown(e, h.dataset.h); });
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!mode) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    let r = Object.assign({}, startBox);
+    if (mode === 'move') { r.x = startBox.x+dx; r.y = startBox.y+dy; }
+    else if (mode === 'nw') { r.x = startBox.x+dx; r.y = startBox.y+dy; r.w = startBox.w-dx; r.h = startBox.h-dy; }
+    else if (mode === 'ne') { r.y = startBox.y+dy; r.w = startBox.w+dx; r.h = startBox.h-dy; }
+    else if (mode === 'sw') { r.x = startBox.x+dx; r.w = startBox.w-dx; r.h = startBox.h+dy; }
+    else if (mode === 'se') { r.w = startBox.w+dx; r.h = startBox.h+dy; }
+    apply(clamp(r));
+  });
+  function endDrag(){ mode = null; }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+}
+function getCroppedBlob(){
+  return new Promise(resolve => {
+    const img = document.getElementById('cropImg');
+    const stage = document.getElementById('cropStage');
+    const box = document.getElementById('cropBox');
+    const scaleX = img.naturalWidth / stage.clientWidth;
+    const scaleY = img.naturalHeight / stage.clientHeight;
+    const bx = box.offsetLeft*scaleX, by = box.offsetTop*scaleY;
+    const bw = box.offsetWidth*scaleX, bh = box.offsetHeight*scaleY;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bw));
+    canvas.height = Math.max(1, Math.round(bh));
+    canvas.getContext('2d').drawImage(img, bx, by, bw, bh, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.92);
+  });
+}
+async function saveCroppedBlob(dateKey, blob){
+  try {
+    const finalBlob = await compressImage(blob, 2000, 0.9);
+    await saveCertImage(dateKey, finalBlob);
+    certKeys.add(dateKey);
+  } catch(e) {
+    alert('Could not save the cropped photo. Please try again.');
+  }
+}
+function markPhotoReady(inputId, isFull){
+  const span = document.getElementById(inputId+'Status');
+  if (span) span.textContent = isFull ? '✓ Photo attached' : '✓ Photo cropped & ready';
+}
+async function cropConfirmHandler(){
+  if (!cropCtx) return;
+  const blob = await getCroppedBlob();
+  if (!blob) return;
+  const {inputEl, dateKey} = cropCtx;
+  if (dateKey) {
+    await saveCroppedBlob(dateKey, blob);
+    closeCropper();
+    render();
+  } else if (inputEl) {
+    pendingCroppedBlobs[inputEl.id] = blob;
+    closeCropper();
+    markPhotoReady(inputEl.id, false);
+  }
+}
+async function cropUseFullHandler(){
+  if (!cropCtx) return;
+  const {inputEl, dateKey, file} = cropCtx;
+  if (dateKey) {
+    await attachCertPhoto(dateKey, file);
+    closeCropper();
+    render();
+  } else if (inputEl) {
+    delete pendingCroppedBlobs[inputEl.id];
+    closeCropper();
+    markPhotoReady(inputEl.id, true);
+  }
+}
+function cropCancelHandler(){
+  if (cropCtx && cropCtx.inputEl) {
+    cropCtx.inputEl.value = '';
+    delete pendingCroppedBlobs[cropCtx.inputEl.id];
+    const span = document.getElementById(cropCtx.inputEl.id+'Status');
+    if (span) span.textContent = '';
+  }
+  closeCropper();
+}
+// Routes a freshly-picked file from any self-certificate photo input into the cropper.
+// dataset.date present = photo for an existing extra-duty entry (Data tab / Calendar day
+// editor "Add photo" control); otherwise it's a new-entry form field (see pendingCroppedBlobs).
+function handlePhotoInputChange(e){
+  const inputEl = e.target;
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  openCropper(file, {inputEl, dateKey: inputEl.dataset.date || null});
+}
+// Used when creating a new extra-duty entry: prefers a cropped photo held in
+// pendingCroppedBlobs for this input, falling back to the input's raw file.
+async function attachPendingOrFilePhoto(dateKey, inputId, inputEl){
+  const pending = pendingCroppedBlobs[inputId];
+  if (pending) {
+    await saveCroppedBlob(dateKey, pending);
+    delete pendingCroppedBlobs[inputId];
+  } else if (inputEl && inputEl.files && inputEl.files[0]) {
+    await attachCertPhoto(dateKey, inputEl.files[0]);
+  }
+}
+/* ---------- JSON backup helpers: embed/restore self-certificate photos as base64 ---------- */
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+async function base64ToBlob(dataUrl){
+  const res = await fetch(dataUrl);
+  return res.blob();
 }
 /* ---------- Minimal ZIP writer (STORE method — no compression needed, photos are already JPEGs) ---------- */
 function crc32(data){
@@ -707,7 +986,8 @@ const state = {
   day: today.getDate(),
   calDay: null,     // iso date string selected in the Calendar tab's day editor
   dataYear: today.getFullYear() >= 2024 && today.getFullYear() <= 2035 ? today.getFullYear() : 2026,
-  undo: null        // {kind, item, idx} - last deleted Data-tab entry, for the Undo banner
+  undo: null,       // {kind, item, idx} - last deleted Data-tab entry, for the Undo banner
+  editKind: null, editIdx: null  // which Data-tab entry (if any) is currently in inline-edit mode
 };
 
 const TABS = [
@@ -716,6 +996,7 @@ const TABS = [
 ];
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function badge(s){ const cls = s==='*' ? 'OFF' : s; const label = s==='*'?'OFF':s; return `<span class="badge ${cls}">${label}</span>`; }
 function yearOptions(sel){ let o=''; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
 function yearOptionsWithAll(sel){ let o=`<option value="0" ${sel==0?'selected':''}>All years</option>`; for(let y=2024;y<=2035;y++) o+=`<option value="${y}" ${y==sel?'selected':''}>${y}</option>`; return o; }
@@ -953,7 +1234,7 @@ function renderCalendar(){
             <div class="field"><label>Extra Duty shift</label><select id="calExtraShift"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
             <div class="field" style="flex:2;"><label>Description</label><input type="text" id="calExtraDesc" placeholder="e.g. Extra duty in Group 2"></div>
           </div>
-          <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="calExtraPhoto"></div></div>
+          <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="calExtraPhoto"><span class="photo-status" id="calExtraPhotoStatus"></span></div></div>
           <button class="ghost" id="calAddExtra">+ Add extra duty on this day</button>
         `}
       </div>
@@ -1033,7 +1314,7 @@ function renderCoff(){
   const body = list.map(c => {
     const pct = daPctForDate(c.date, daSlots);
     const hasCert = certKeys.has(isoKeyFromUTC(c.date));
-    const photoCell = c.isExtra ? (hasCert ? '📷' : 'NA') : '';
+    const photoCell = c.isExtra ? (hasCert ? `<button type="button" class="cert-btn cert-view-btn" data-date="${isoKeyFromUTC(c.date)}" style="padding:2px 6px;">📷</button>` : 'NA') : '';
     return `<tr><td>${fmtDMY(c.date)}</td><td class="desc">${c.desc}</td><td>${badge(c.shift)}</td><td>${pct}%</td><td>${photoCell}</td></tr>`;
   }).join('');
   const totalAmount = list.reduce((s,c) => s + perDayAmount(basic, daPctForDate(c.date, daSlots)), 0);
@@ -1086,6 +1367,31 @@ function renderNight(){
 }
 
 function renderData(){
+  function editForm(kind, i, item){
+    if (kind === 'extra') {
+      return `<div class="data-item extra-item edit-row">
+        <div class="row">
+          <div class="field"><label>Date</label><input type="date" id="editDate" value="${item.date}"></div>
+          <div class="field"><label>Shift</label><select id="editShift">${['A','B','C','D'].map(s=>`<option ${item.shift===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        </div>
+        <div class="row"><div class="field" style="flex:1;"><label>Description</label><input type="text" id="editDesc" value="${escAttr(item.desc)}"></div></div>
+        <div class="row">
+          <button class="ghost" id="editSave" data-kind="${kind}" data-idx="${i}" style="flex:1;">Save</button>
+          <button class="ghost" id="editCancel" style="flex:1;">Cancel</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="data-item edit-row">
+      <div class="row">
+        <div class="field"><label>Date</label><input type="date" id="editDate" value="${item.date}"></div>
+        <div class="field" style="flex:2;"><label>${kind==='holidays'?'Description':'Type'}</label><input type="text" id="editDesc" value="${escAttr(item.desc)}"></div>
+      </div>
+      <div class="row">
+        <button class="ghost" id="editSave" data-kind="${kind}" data-idx="${i}" style="flex:1;">Save</button>
+        <button class="ghost" id="editCancel" style="flex:1;">Cancel</button>
+      </div>
+    </div>`;
+  }
   function list(arr, kind){
     const withIdx = arr.map((item,i) => ({item,i}));
     const filtered = state.dataYear === 0 ? withIdx : withIdx.filter(x => x.item.date.startsWith(String(state.dataYear)+'-'));
@@ -1093,6 +1399,7 @@ function renderData(){
     if (!filtered.length) return '<p class="empty-note">No entries yet</p>';
     if (kind === 'extra') {
       return filtered.map(({item,i}) => {
+        if (state.editKind === kind && state.editIdx === i) return editForm(kind, i, item);
         const hasCert = certKeys.has(item.date);
         const certHtml = hasCert
           ? `<button type="button" class="cert-btn cert-view-btn" data-date="${item.date}">📷 View photo</button><button type="button" class="cert-btn danger cert-remove-btn" data-date="${item.date}">Remove photo</button>`
@@ -1101,17 +1408,22 @@ function renderData(){
           <div class="data-item-row">
             <span>${item.desc}${item.shift ? ` <span class="badge ${item.shift}">${item.shift}</span>`:''}</span>
             <span class="meta">${item.date} · ${hasCert?'📷':'NA'}</span>
+            <button class="edit-btn" data-kind="extra" data-idx="${i}" title="Edit">✎</button>
             <button class="del" data-kind="extra" data-idx="${i}">×</button>
           </div>
           <div class="cert-controls">${certHtml}</div>
         </div>`;
       }).join('');
     }
-    return filtered.map(({item,i}) => `<div class="data-item">
+    return filtered.map(({item,i}) => {
+      if (state.editKind === kind && state.editIdx === i) return editForm(kind, i, item);
+      return `<div class="data-item">
       <span>${item.desc}${item.shift ? ` <span class="badge ${item.shift}">${item.shift}</span>`:''}</span>
       <span class="meta">${item.date}</span>
+      <button class="edit-btn" data-kind="${kind}" data-idx="${i}" title="Edit">✎</button>
       <button class="del" data-kind="${kind}" data-idx="${i}">×</button>
-    </div>`).join('');
+    </div>`;
+    }).join('');
   }
   const undoHtml = state.undo ? `
     <div class="undo-banner">
@@ -1158,12 +1470,12 @@ function renderData(){
           <option>A</option><option>B</option><option>C</option><option>D</option></select></div>
       </div>
       <div class="row"><div class="field" style="flex:1;"><label>Description</label><input type="text" id="newExtraDesc" placeholder="e.g. Extra duty"></div></div>
-      <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="newExtraPhoto"></div></div>
+      <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="newExtraPhoto"><span class="photo-status" id="newExtraPhotoStatus"></span></div></div>
       <button class="ghost" id="addExtra">+ Add extra duty</button>
     </div>
     <div class="card">
       <h2>Backup</h2>
-      <div class="hint">This data is saved only on this device (this app is shared, but everyone's Group, leaves and extra duty stay private to their own phone). Export as JSON to keep a full backup or move your data to another device — keep this available and use it regularly.</div>
+      <div class="hint">This data is saved only on this device (this app is shared, but everyone's Group, leaves and extra duty stay private to their own phone). Export as JSON to keep a full backup — this now includes your attached self-certificate photos too — or to move your data to another device. Keep this available and use it regularly.</div>
       <div class="row">
         <button class="ghost" id="exportData" style="flex:1;">Export as JSON (Backup)</button>
         <button class="ghost" id="importBtn" style="flex:1;">Import data</button>
@@ -1202,13 +1514,13 @@ function bindTabInputs(){
 
   // Self-certificate photo controls — appear on both the Calendar (day editor) and
   // Data tabs, so these are bound unconditionally rather than inside a single tab's block.
-  document.querySelectorAll('.cert-file-input').forEach(inp => inp.addEventListener('change', async e => {
-    const dateKey = e.target.dataset.date;
-    const file = e.target.files[0];
-    if (!file) return;
-    await attachCertPhoto(dateKey, file);
-    render();
-  }));
+  // Every photo picker (existing-entry "Add photo" controls, plus the new-entry forms
+  // on the Data and Calendar tabs) routes through the crop modal first.
+  document.querySelectorAll('.cert-file-input').forEach(inp => inp.addEventListener('change', handlePhotoInputChange));
+  const newExtraPhotoInp = document.getElementById('newExtraPhoto');
+  if (newExtraPhotoInp) newExtraPhotoInp.addEventListener('change', handlePhotoInputChange);
+  const calExtraPhotoInp = document.getElementById('calExtraPhoto');
+  if (calExtraPhotoInp) calExtraPhotoInp.addEventListener('change', handlePhotoInputChange);
   document.querySelectorAll('.cert-view-btn').forEach(btn => btn.addEventListener('click', async () => {
     const blob = await getCertImage(btn.dataset.date);
     if (blob) showCertLightbox(blob);
@@ -1355,7 +1667,7 @@ function bindTabInputs(){
       const photoInput = document.getElementById('calExtraPhoto');
       const addedDate = state.calDay;
       if (addExtraEntry(addedDate, desc, shift)) {
-        if (photoInput && photoInput.files && photoInput.files[0]) await attachCertPhoto(addedDate, photoInput.files[0]);
+        await attachPendingOrFilePhoto(addedDate, 'calExtraPhoto', photoInput);
         render();
       }
     });
@@ -1385,7 +1697,7 @@ function bindTabInputs(){
       if (!d) { alert('Enter a date'); return; }
       if (addExtraEntry(d, desc, shift)) {
         state.undo = null;
-        if (photoInput && photoInput.files && photoInput.files[0]) await attachCertPhoto(d, photoInput.files[0]);
+        await attachPendingOrFilePhoto(d, 'newExtraPhoto', photoInput);
         render();
       }
     });
@@ -1397,6 +1709,41 @@ function bindTabInputs(){
       saveData();
       render();
     }));
+    document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => {
+      state.editKind = b.dataset.kind;
+      state.editIdx = parseInt(b.dataset.idx,10);
+      render();
+    }));
+    const editCancelBtn = document.getElementById('editCancel');
+    if (editCancelBtn) editCancelBtn.addEventListener('click', () => {
+      state.editKind = null; state.editIdx = null;
+      render();
+    });
+    const editSaveBtn = document.getElementById('editSave');
+    if (editSaveBtn) editSaveBtn.addEventListener('click', async () => {
+      const kind = editSaveBtn.dataset.kind, idx = parseInt(editSaveBtn.dataset.idx,10);
+      const arr = kind==='holidays' ? holidays : kind==='leaves' ? leaves : extra;
+      const newDate = document.getElementById('editDate').value;
+      const newDesc = document.getElementById('editDesc').value.trim();
+      if (!newDate || !newDesc) { alert('Enter both date and description'); return; }
+      const item = arr[idx];
+      const oldDate = item.date;
+      item.date = newDate;
+      item.desc = newDesc;
+      if (kind === 'extra') item.shift = document.getElementById('editShift').value;
+      saveData();
+      // An extra-duty photo is keyed by date in IndexedDB — move it along if the date changed.
+      if (kind === 'extra' && oldDate !== newDate && certKeys.has(oldDate)) {
+        const certBlob = await getCertImage(oldDate);
+        if (certBlob) {
+          await saveCertImage(newDate, certBlob);
+          await deleteCertImage(oldDate);
+          certKeys.delete(oldDate); certKeys.add(newDate);
+        }
+      }
+      state.editKind = null; state.editIdx = null;
+      render();
+    });
     const undoBtn = document.getElementById('undoDelete');
     if (undoBtn) undoBtn.addEventListener('click', () => {
       if (!state.undo) return;
@@ -1409,13 +1756,24 @@ function bindTabInputs(){
     });
     const dismissBtn = document.getElementById('undoDismiss');
     if (dismissBtn) dismissBtn.addEventListener('click', () => { state.undo = null; render(); });
-    document.getElementById('exportData').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify({holidays,leaves,extra}, null, 2)], {type:'application/json'});
+    document.getElementById('exportData').addEventListener('click', async () => {
+      const btn = document.getElementById('exportData');
+      const origLabel = btn.textContent;
+      btn.textContent = 'Preparing backup…'; btn.disabled = true;
+      const certs = {};
+      for (const key of certKeys) {
+        try {
+          const certBlob = await getCertImage(key);
+          if (certBlob) certs[key] = await blobToBase64(certBlob);
+        } catch(e) {}
+      }
+      const blob = new Blob([JSON.stringify({holidays,leaves,extra,certs}, null, 2)], {type:'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `shift-roster-data-${new Date().toISOString().slice(0,10)}.json`;
       a.click();
       markBackupDone();
+      btn.textContent = origLabel; btn.disabled = false;
       render();
     });
     document.getElementById('exportAllCsv').addEventListener('click', () => {
@@ -1432,18 +1790,28 @@ function bindTabInputs(){
     document.getElementById('importFile').addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         try {
           const d = JSON.parse(reader.result);
-          if (!confirm('This will replace all existing holidays, leaves and extra-duty data on this device with the contents of this file. Continue?')) {
+          const hasCerts = d.certs && typeof d.certs === 'object' && Object.keys(d.certs).length;
+          const msg = hasCerts
+            ? 'This will replace all existing holidays, leaves, extra-duty data and self-certificate photos on this device with the contents of this file. Continue?'
+            : 'This will replace all existing holidays, leaves and extra-duty data on this device with the contents of this file. Continue?';
+          if (!confirm(msg)) {
             e.target.value = '';
             return;
           }
           holidays = d.holidays || []; leaves = d.leaves || []; extra = d.extra || [];
           state.undo = null;
           saveData();
+          if (hasCerts) {
+            for (const [key, dataUrl] of Object.entries(d.certs)) {
+              try { await saveCertImage(key, await base64ToBlob(dataUrl)); } catch(err) {}
+            }
+            refreshCertKeys();
+          }
           render();
-          alert('Data imported.');
+          alert('Data imported' + (hasCerts ? ' (including self-certificate photos).' : '.'));
         } catch { alert('Could not read that file.'); }
       };
       reader.readAsText(file);
@@ -1496,7 +1864,17 @@ function init(){
     tabsNav.appendChild(b);
   });
   attachSwipeNav();
-  document.getElementById('certLightbox').addEventListener('click', hideCertLightbox);
+  // Tapping the dark background (not the photo itself, which is used for pinch/pan) or
+  // the ✕ button closes the lightbox.
+  document.getElementById('certLightbox').addEventListener('click', e => {
+    if (e.target.id === 'certLightbox') hideCertLightbox();
+  });
+  document.getElementById('certLightboxClose').addEventListener('click', hideCertLightbox);
+  initLightboxZoom();
+  document.getElementById('cropCancel').addEventListener('click', cropCancelHandler);
+  document.getElementById('cropUseFull').addEventListener('click', cropUseFullHandler);
+  document.getElementById('cropConfirm').addEventListener('click', cropConfirmHandler);
+  setupCropDrag();
   refreshCertKeys();
   render();
 }
