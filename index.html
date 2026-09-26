@@ -122,6 +122,7 @@
   .cal-mark.holiday{background:#DC2626;}
   .cal-mark.secondsat{background:#F59E0B;}
   .cal-mark.leave{background:#2563EB;}
+  .cal-mark.extra{background:#9333EA;}
   .cal-mark.lost{background:transparent;border:2px solid #DC2626;width:8px;height:8px;}
   .cal-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:calc(12.5px * var(--fs-mult));color:var(--ink-soft);}
   .cal-legend span{display:inline-flex;align-items:center;gap:5px;}
@@ -135,6 +136,18 @@
     padding:9px 0;border-bottom:1px solid var(--line);font-size:calc(14.5px * var(--fs-mult));gap:8px;}
   .data-item .meta{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);}
   .data-item .del{background:none;border:none;color:#DC2626;font-size:calc(18px * var(--fs-mult));cursor:pointer;padding:2px 6px;}
+  .data-item.extra-item{display:block;}
+  .data-item.extra-item .data-item-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .cert-controls{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+  .cert-btn{display:inline-flex;align-items:center;gap:4px;background:transparent;border:1px solid var(--line);
+    color:var(--ink-soft);border-radius:8px;padding:6px 10px;font-size:calc(12px * var(--fs-mult));
+    cursor:pointer;font-weight:600;}
+  .cert-btn.danger{color:#DC2626;border-color:#FCA5A5;}
+  input[type=file]{font-size:calc(13px * var(--fs-mult));width:100%;color:var(--ink);}
+  .cert-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;
+    align-items:center;justify-content:center;padding:16px;}
+  .cert-lightbox.show{display:flex;}
+  .cert-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;}
   .hint{font-size:calc(13.5px * var(--fs-mult));color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
   .total-line{display:flex;justify-content:space-between;font-weight:700;font-size:calc(14.5px * var(--fs-mult));
     padding-top:8px;margin-top:4px;border-top:2px solid var(--ink);}
@@ -193,6 +206,7 @@
   <nav class="tabs" id="tabs"></nav>
   <main id="content"></main>
 </div>
+<div id="certLightbox" class="cert-lightbox"><img id="certLightboxImg" alt="Self-certificate photo"></div>
 
 <script>
 /* ============================= CORE SHIFT LOGIC ============================= */
@@ -305,16 +319,16 @@ function getCoff(shiftFn, year) {
       const utc = Date.UTC(year, month-1, d);
       if (extraMap.has(key)) {
         const e = extraMap.get(key);
-        if (["A","B","C","D"].includes(e.shift)) list.push({date:utc, desc:e.desc, shift:e.shift});
+        if (["A","B","C","D"].includes(e.shift)) list.push({date:utc, desc:e.desc, shift:e.shift, isExtra:true});
         continue;
       }
       const shift = shiftFn(utc);
       if (holidayMap.has(key)) {
-        if (["A","B","C","D"].includes(shift)) list.push({date:utc, desc:holidayMap.get(key), shift});
+        if (["A","B","C","D"].includes(shift)) list.push({date:utc, desc:holidayMap.get(key), shift, isExtra:false});
       } else {
         const dow = new Date(utc).getUTCDay(); // Sat=6
         if (["A","B","C","D"].includes(shift) && dow===6 && d>=8 && d<=14) {
-          list.push({date:utc, desc:"2nd Saturday", shift});
+          list.push({date:utc, desc:"2nd Saturday", shift, isExtra:false});
         }
       }
     }
@@ -462,6 +476,169 @@ function loadData(){
       if (Array.isArray(d.extra)) extra = d.extra;
     }
   } catch(e) {}
+}
+
+/* ============================= SELF-CERTIFICATE PHOTOS (per-device, local only) =============================
+   Extra-duty self-certificates are photos, so they're too big for localStorage — they live in IndexedDB
+   instead, keyed by the extra-duty date (e.g. "2026-07-14"). Nothing here ever leaves the device. */
+const CERT_DB_NAME = 'shiftRosterCerts';
+const CERT_STORE = 'certs';
+let certKeys = new Set(); // in-memory cache of dates that have a photo, kept in sync so render() can stay synchronous
+function openCertDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(CERT_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(CERT_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveCertImage(dateKey, blob){
+  const db = await openCertDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CERT_STORE, 'readwrite');
+    tx.objectStore(CERT_STORE).put(blob, dateKey);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getCertImage(dateKey){
+  const db = await openCertDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CERT_STORE, 'readonly');
+    const req = tx.objectStore(CERT_STORE).get(dateKey);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function deleteCertImage(dateKey){
+  const db = await openCertDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CERT_STORE, 'readwrite');
+    tx.objectStore(CERT_STORE).delete(dateKey);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getAllCertKeys(){
+  const db = await openCertDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(CERT_STORE, 'readonly');
+    const req = tx.objectStore(CERT_STORE).getAllKeys();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+function refreshCertKeys(){
+  getAllCertKeys().then(keys => { certKeys = new Set(keys); if (state.tab === 'data') render(); }).catch(()=>{});
+}
+// Downscales to a max dimension of 2000px and re-encodes as JPEG at 90% quality — this cuts a typical
+// 3-8MB phone-camera photo down to a few hundred KB while keeping text/signatures/stamps sharp enough
+// for a clean Xerox. imageOrientation:'from-image' avoids sideways photos from camera EXIF rotation.
+async function compressImage(file, maxDim, quality){
+  maxDim = maxDim || 2000; quality = quality === undefined ? 0.9 : quality;
+  let bitmap = null;
+  try { bitmap = await createImageBitmap(file, {imageOrientation:'from-image'}); } catch(e) {}
+  let srcW, srcH, drawable;
+  if (bitmap) { srcW = bitmap.width; srcH = bitmap.height; drawable = bitmap; }
+  else {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = URL.createObjectURL(file);
+    });
+    srcW = img.naturalWidth; srcH = img.naturalHeight; drawable = img;
+  }
+  let w = srcW, h = srcH;
+  if (Math.max(w,h) > maxDim) {
+    const scale = maxDim / Math.max(w,h);
+    w = Math.round(w*scale); h = Math.round(h*scale);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(drawable, 0, 0, w, h);
+  return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/jpeg', quality));
+}
+async function attachCertPhoto(dateKey, file){
+  try {
+    const blob = await compressImage(file);
+    await saveCertImage(dateKey, blob);
+    certKeys.add(dateKey);
+  } catch(e) {
+    alert('Could not save the photo. You can try attaching it again from the Extra Duty list.');
+  }
+}
+function showCertLightbox(blob){
+  const img = document.getElementById('certLightboxImg');
+  img.src = URL.createObjectURL(blob);
+  document.getElementById('certLightbox').classList.add('show');
+}
+function hideCertLightbox(){
+  const box = document.getElementById('certLightbox');
+  const img = document.getElementById('certLightboxImg');
+  box.classList.remove('show');
+  if (img.src) URL.revokeObjectURL(img.src);
+  img.src = '';
+}
+/* ---------- Minimal ZIP writer (STORE method — no compression needed, photos are already JPEGs) ---------- */
+function crc32(data){
+  let crc = ~0;
+  for (let i=0; i<data.length; i++) {
+    crc ^= data[i];
+    for (let j=0; j<8; j++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+  }
+  return (~crc) >>> 0;
+}
+function buildZip(files){ // files: [{name, data:Uint8Array}]
+  const encoder = new TextEncoder();
+  const localParts = [], centralParts = [];
+  let offset = 0;
+  const now = new Date();
+  const time = ((now.getHours() & 0x1F) << 11) | ((now.getMinutes() & 0x3F) << 5) | (Math.floor(now.getSeconds()/2) & 0x1F);
+  const dosDate = (((now.getFullYear()-1980) & 0x7F) << 9) | (((now.getMonth()+1) & 0xF) << 5) | (now.getDate() & 0x1F);
+
+  files.forEach(f => {
+    const nameBytes = encoder.encode(f.name);
+    const data = f.data;
+    const crc = crc32(data);
+    const size = data.length;
+
+    const local = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 0, true);
+    lv.setUint16(10, time, true); lv.setUint16(12, dosDate, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, size, true); lv.setUint32(22, size, true);
+    lv.setUint16(26, nameBytes.length, true); lv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    localParts.push(local, data);
+
+    const central = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(central.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, time, true); cv.setUint16(14, dosDate, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, size, true); cv.setUint32(24, size, true);
+    cv.setUint16(28, nameBytes.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    central.set(nameBytes, 46);
+    centralParts.push(central);
+
+    offset += local.length + data.length;
+  });
+
+  const centralSize = centralParts.reduce((s,p)=>s+p.length, 0);
+  const centralOffset = offset;
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, centralOffset, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...localParts, ...centralParts, end], {type:'application/zip'});
 }
 function savePrefs(){
   try { localStorage.setItem(PREF_KEY, JSON.stringify({
@@ -700,6 +877,7 @@ function renderCalendar(){
     const leaveDesc = leaveMap.get(key);
     const isWorkingShift = ["A","B","C","D"].includes(cell.shift);
     const isLost = !!leaveDesc && (isHoliday || isSecondSat) && isWorkingShift;
+    const dExtra = extraMap.get(key);
 
     if (isHoliday) holCount++;
     if (isSecondSat) satCount++;
@@ -710,6 +888,7 @@ function renderCalendar(){
     if (isHoliday) titleBits.push(holidayMap.get(key));
     if (isSecondSat) titleBits.push('2nd Saturday');
     if (leaveDesc) titleBits.push(`Leave: ${leaveDesc}`);
+    if (dExtra) titleBits.push(`Extra Duty: ${dExtra.desc} (${dExtra.shift})`);
     if (isLost) titleBits.push('C-OFF opportunity lost');
     const title = titleBits.length ? ` title="${titleBits.join(' | ').replace(/"/g,'&quot;')}"` : '';
 
@@ -717,6 +896,7 @@ function renderCalendar(){
     if (isHoliday) marks += '<span class="cal-mark holiday"></span>';
     if (isSecondSat) marks += '<span class="cal-mark secondsat"></span>';
     if (leaveDesc) marks += '<span class="cal-mark leave"></span>';
+    if (dExtra) marks += '<span class="cal-mark extra"></span>';
 
     let extraCls = '';
     if (cellUTC === todayUTC) extraCls += ' cal-today';
@@ -765,11 +945,15 @@ function renderCalendar(){
         <div style="height:10px;"></div>
         ${dExtra ? `
           <div class="data-item"><span>Extra Duty: <span class="badge ${dExtra.shift}">${dExtra.shift}</span> <span class="meta">${dExtra.desc}</span></span><button class="ghost" id="calRemoveExtra">Remove</button></div>
+          <div class="cert-controls">${certKeys.has(d)
+            ? `<button type="button" class="cert-btn cert-view-btn" data-date="${d}">📷 View photo</button><button type="button" class="cert-btn danger cert-remove-btn" data-date="${d}">Remove photo</button>`
+            : `<label class="cert-btn">📷 Add photo<input type="file" accept="image/*" capture="environment" class="cert-file-input" data-date="${d}" style="display:none;"></label>`}</div>
         ` : `
           <div class="row">
             <div class="field"><label>Extra Duty shift</label><select id="calExtraShift"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
             <div class="field" style="flex:2;"><label>Description</label><input type="text" id="calExtraDesc" placeholder="e.g. Extra duty in Group 2"></div>
           </div>
+          <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="calExtraPhoto"></div></div>
           <button class="ghost" id="calAddExtra">+ Add extra duty on this day</button>
         `}
       </div>
@@ -799,6 +983,7 @@ function renderCalendar(){
         <span><span class="cal-mark holiday"></span> Holiday</span>
         <span><span class="cal-mark secondsat"></span> 2nd Saturday</span>
         <span><span class="cal-mark leave"></span> Leave taken</span>
+        <span><span class="cal-mark extra"></span> Extra Duty</span>
         <span><span class="cal-mark lost"></span> C-OFF lost</span>
       </div>
       <div class="hint" style="margin:10px 0 0;">${summary}</div>
@@ -847,7 +1032,9 @@ function renderCoff(){
   const daSlots = daSlotsSorted();
   const body = list.map(c => {
     const pct = daPctForDate(c.date, daSlots);
-    return `<tr><td>${fmtDMY(c.date)}</td><td class="desc">${c.desc}</td><td>${badge(c.shift)}</td><td>${pct}%</td></tr>`;
+    const hasCert = certKeys.has(isoKeyFromUTC(c.date));
+    const photoCell = c.isExtra ? (hasCert ? '📷' : 'NA') : '';
+    return `<tr><td>${fmtDMY(c.date)}</td><td class="desc">${c.desc}</td><td>${badge(c.shift)}</td><td>${pct}%</td><td>${photoCell}</td></tr>`;
   }).join('');
   const totalAmount = list.reduce((s,c) => s + perDayAmount(basic, daPctForDate(c.date, daSlots)), 0);
   return `
@@ -861,10 +1048,11 @@ function renderCoff(){
       </div>
     </div>
     <div class="card">
-      <table><tr><th>Date</th><th>Description</th><th>Shift</th><th>DA%</th></tr>${body || '<tr><td colspan="4" class="empty-note">No C-OFFs found</td></tr>'}</table>
+      <table><tr><th>Date</th><th>Description</th><th>Shift</th><th>DA%</th><th>Photo</th></tr>${body || '<tr><td colspan="5" class="empty-note">No C-OFFs found</td></tr>'}</table>
       <div class="total-line"><span>Total C-OFFs</span><span>${list.length}</span></div>
       <div class="total-line"><span>Total C-OFF Amount</span><span>₹${totalAmount.toFixed(2)}</span></div>
       <button class="ghost" id="coExportCsv" style="margin-top:12px;width:100%;">Export to Excel (CSV)</button>
+      <button class="ghost" id="coExportPhotos" style="margin-top:8px;width:100%;">Export Self-Certificate Photos (ZIP)</button>
     </div>
   `;
 }
@@ -903,6 +1091,22 @@ function renderData(){
     const filtered = state.dataYear === 0 ? withIdx : withIdx.filter(x => x.item.date.startsWith(String(state.dataYear)+'-'));
     filtered.sort((a,b) => a.item.date.localeCompare(b.item.date));
     if (!filtered.length) return '<p class="empty-note">No entries yet</p>';
+    if (kind === 'extra') {
+      return filtered.map(({item,i}) => {
+        const hasCert = certKeys.has(item.date);
+        const certHtml = hasCert
+          ? `<button type="button" class="cert-btn cert-view-btn" data-date="${item.date}">📷 View photo</button><button type="button" class="cert-btn danger cert-remove-btn" data-date="${item.date}">Remove photo</button>`
+          : `<label class="cert-btn">📷 Add photo<input type="file" accept="image/*" capture="environment" class="cert-file-input" data-date="${item.date}" style="display:none;"></label>`;
+        return `<div class="data-item extra-item">
+          <div class="data-item-row">
+            <span>${item.desc}${item.shift ? ` <span class="badge ${item.shift}">${item.shift}</span>`:''}</span>
+            <span class="meta">${item.date} · ${hasCert?'📷':'NA'}</span>
+            <button class="del" data-kind="extra" data-idx="${i}">×</button>
+          </div>
+          <div class="cert-controls">${certHtml}</div>
+        </div>`;
+      }).join('');
+    }
     return filtered.map(({item,i}) => `<div class="data-item">
       <span>${item.desc}${item.shift ? ` <span class="badge ${item.shift}">${item.shift}</span>`:''}</span>
       <span class="meta">${item.date}</span>
@@ -954,6 +1158,7 @@ function renderData(){
           <option>A</option><option>B</option><option>C</option><option>D</option></select></div>
       </div>
       <div class="row"><div class="field" style="flex:1;"><label>Description</label><input type="text" id="newExtraDesc" placeholder="e.g. Extra duty"></div></div>
+      <div class="row"><div class="field" style="flex:1;"><label>Self-Certificate Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="newExtraPhoto"></div></div>
       <button class="ghost" id="addExtra">+ Add extra duty</button>
     </div>
     <div class="card">
@@ -994,6 +1199,27 @@ function bindTabInputs(){
   bindCommon('co',[['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
   bindCommon('n', [['Group','group',true],['GenShift','genShift'],['Year','year',true]]);
   bindCommon('dd',[['Year','dataYear',true]]);
+
+  // Self-certificate photo controls — appear on both the Calendar (day editor) and
+  // Data tabs, so these are bound unconditionally rather than inside a single tab's block.
+  document.querySelectorAll('.cert-file-input').forEach(inp => inp.addEventListener('change', async e => {
+    const dateKey = e.target.dataset.date;
+    const file = e.target.files[0];
+    if (!file) return;
+    await attachCertPhoto(dateKey, file);
+    render();
+  }));
+  document.querySelectorAll('.cert-view-btn').forEach(btn => btn.addEventListener('click', async () => {
+    const blob = await getCertImage(btn.dataset.date);
+    if (blob) showCertLightbox(blob);
+  }));
+  document.querySelectorAll('.cert-remove-btn').forEach(btn => btn.addEventListener('click', async () => {
+    const dateKey = btn.dataset.date;
+    if (!confirm(`Remove the attached self-certificate photo for ${dateKey}?`)) return;
+    await deleteCertImage(dateKey);
+    certKeys.delete(dateKey);
+    render();
+  }));
 
   if (state.tab === 'today') {
     document.querySelectorAll('.da-pct-input').forEach(node => {
@@ -1051,6 +1277,26 @@ function bindTabInputs(){
       const idLabel = state.department === 'OPN_GEN' ? `gen-${state.genShift}` : `group${state.group}`;
       downloadCSV(`c-off-${idLabel}-${state.year}.csv`, rowsToCSV(rows));
     });
+    const photoBtn = document.getElementById('coExportPhotos');
+    if (photoBtn) photoBtn.addEventListener('click', async () => {
+      const list = getCoff(personalShiftFn(), state.year);
+      const keysWithCert = list.map(c => isoKeyFromUTC(c.date)).filter(key => certKeys.has(key));
+      if (!keysWithCert.length) { alert('No self-certificate photos attached for this year\'s C-OFFs yet.'); return; }
+      const files = [];
+      for (const key of keysWithCert) {
+        const blob = await getCertImage(key);
+        if (blob) {
+          const ext = blob.type === 'image/png' ? 'png' : 'jpg';
+          files.push({name: `${key}.${ext}`, data: new Uint8Array(await blob.arrayBuffer())});
+        }
+      }
+      if (!files.length) { alert('Could not read the saved photos. Please try again.'); return; }
+      const zipBlob = buildZip(files);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = `self-certificates-${state.year}.zip`;
+      a.click();
+    });
   }
 
   if (state.tab === 'night') {
@@ -1103,11 +1349,15 @@ function bindTabInputs(){
       render();
     });
     const addExtraBtn = document.getElementById('calAddExtra');
-    if (addExtraBtn) addExtraBtn.addEventListener('click', () => {
+    if (addExtraBtn) addExtraBtn.addEventListener('click', async () => {
       const shift = document.getElementById('calExtraShift').value;
       const desc = document.getElementById('calExtraDesc').value.trim() || 'Extra duty';
-      addExtraEntry(state.calDay, desc, shift);
-      render();
+      const photoInput = document.getElementById('calExtraPhoto');
+      const addedDate = state.calDay;
+      if (addExtraEntry(addedDate, desc, shift)) {
+        if (photoInput && photoInput.files && photoInput.files[0]) await attachCertPhoto(addedDate, photoInput.files[0]);
+        render();
+      }
     });
     const removeExtraBtn = document.getElementById('calRemoveExtra');
     if (removeExtraBtn) removeExtraBtn.addEventListener('click', () => {
@@ -1128,11 +1378,16 @@ function bindTabInputs(){
       if (!d || !desc) { alert('Enter both date and type'); return; }
       if (addLeaveEntry(d, desc)) { state.undo = null; render(); }
     });
-    document.getElementById('addExtra').addEventListener('click', () => {
+    document.getElementById('addExtra').addEventListener('click', async () => {
       const d = document.getElementById('newExtraDate').value, desc = document.getElementById('newExtraDesc').value.trim() || 'Extra duty';
       const shift = document.getElementById('newExtraShift').value;
+      const photoInput = document.getElementById('newExtraPhoto');
       if (!d) { alert('Enter a date'); return; }
-      if (addExtraEntry(d, desc, shift)) { state.undo = null; render(); }
+      if (addExtraEntry(d, desc, shift)) {
+        state.undo = null;
+        if (photoInput && photoInput.files && photoInput.files[0]) await attachCertPhoto(d, photoInput.files[0]);
+        render();
+      }
     });
     document.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => {
       const kind = b.dataset.kind, idx = parseInt(b.dataset.idx,10);
@@ -1241,6 +1496,8 @@ function init(){
     tabsNav.appendChild(b);
   });
   attachSwipeNav();
+  document.getElementById('certLightbox').addEventListener('click', hideCertLightbox);
+  refreshCertKeys();
   render();
 }
 init();
